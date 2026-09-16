@@ -1,0 +1,50 @@
+{
+  "name": "win-dynamic-island",
+  "version": "1.0.0",
+  "description": "Windows Dynamic Island - Real-time Media, Weather & Hardware Monitor",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:portable": "electron-builder --win portable",
+    "build:setup": "electron-builder --win nsis",
+    "build": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.antigravity.dynamicisland",
+    "productName": "DynamicIsland",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "src/**/*",
+      "styles/**/*",
+      "package.json"
+    ],
+    "asar": true
+  },
+  "keywords": [
+    "dynamic-island",
+    "windows",
+    "widgets"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^34.2.0",
+    "electron-builder": "^26.0.2"
+  }
+}

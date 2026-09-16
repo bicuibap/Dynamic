@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary screenshots & media
+*.png
+*.jpg
+*.jpeg
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

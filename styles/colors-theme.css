@@ -1,0 +1,28 @@
+:root {
+  /* Stealth Dark Theme */
+  --bg-island: #000000;
+  --bg-island-solid: #0a0b10;
+  --bg-card: rgba(20, 22, 30, 0.85);
+  --bg-card-hover: rgba(30, 33, 45, 0.95);
+  --bg-pill: rgba(255, 255, 255, 0.08);
+  --bg-pill-hover: rgba(255, 255, 255, 0.14);
+
+  --accent-cyan: #38bdf8;
+  --accent-purple: #818cf8;
+  --accent-green: #34d399;
+  --accent-yellow: #fbbf24;
+  --accent-red: #f87171;
+  --accent-blue: #60a5fa;
+
+  --text-primary: #f3f4f6;
+  --text-secondary: rgba(243, 244, 246, 0.75);
+  --text-muted: rgba(243, 244, 246, 0.45);
+
+  /* Clean Windows/Mac Native Font Stack - 100% Vietnamese Accent Safe */
+  --font-family: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'Cascadia Code', 'Segoe UI Mono', 'Consolas', monospace;
+
+  --radius-bar: 0 0 16px 16px;
+  --radius-card: 14px;
+  --radius-pill: 9999px;
+}

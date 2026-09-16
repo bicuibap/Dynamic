@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Windows Dynamic Island</title>
+  
+  <!-- Google Fonts: Inter & Plus Jakarta Sans (Chuẩn hỗ trợ Tiếng Việt 100%) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles/colors-theme.css">
+  <link rel="stylesheet" href="styles/top-bar.css">
+  <link rel="stylesheet" href="styles/animations.css">
+  <link rel="stylesheet" href="styles/dashboard.css">
+</head>
+<body>
+  <div id="app-container">
+    <!-- DYNAMIC ISLAND CONTAINER -->
+    <div id="island-pill" class="island-collapsed">
+      
+      <!-- 1. COMPACT NOTCH BAR (Mặc định ở trên cùng) -->
+      <div class="island-header-bar" id="island-header">
+        <!-- Time with Cyan Seconds & Date -->
+        <div class="notch-time-group">
+          <span class="notch-clock-cyan" id="notch-clock">--:--:--</span>
+          <span class="notch-date-white" id="notch-date">Hôm nay</span>
+        </div>
+
+        <!-- Center: Mini Live Song Pill (Hiện khi có nhạc) -->
+        <div class="notch-live-music" id="notch-live-music">
+          <div class="notch-equalizer" id="notch-equalizer">
+            <span class="eq-bar bar1"></span>
+            <span class="eq-bar bar2"></span>
+            <span class="eq-bar bar3"></span>
+            <span class="eq-bar bar4"></span>
+          </div>
+          <span class="notch-music-title" id="notch-music-title">Đang quét nhạc...</span>
+        </div>
+
+        <!-- Status Badges: CPU Temp & Weather & Disc -->
+        <div class="notch-status-group">
+          <div class="notch-stat-item cpu-temp" id="notch-cpu-item" title="Nhiệt độ CPU máy">
+            <span class="stat-icon">🔥</span>
+            <span id="notch-cpu-val">--°C</span>
+          </div>
+          <div class="notch-stat-item weather" id="notch-weather-item" title="Thời tiết & Vị trí">
+            <span id="notch-weather-icon">🌤️</span>
+            <span id="notch-weather-val">--°C</span>
+            <span class="notch-weather-city" id="notch-weather-city">...</span>
+          </div>
+          <!-- Mini Vinyl Disc with Image -->
+          <div class="notch-blue-circle" id="notch-music-btn" title="Phát / Dừng">
+            <img id="notch-disc-img" class="notch-disc-img" src="" alt="" style="display: none;" />
+            <span class="disc-note" id="notch-disc-note">🎵</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. EXPANDED MUSIC & MEDIA HUB (Mở rộng thực tế) -->
+      <div id="dashboard-panel" class="dashboard-expanded">
+        <div class="media-hero-card">
+          
+          <!-- Album Cover / Vinyl Artwork -->
+          <div class="cover-art-container">
+            <div class="vinyl-record" id="vinyl-disc">
+              <div class="vinyl-grooves"></div>
+              <div class="vinyl-center" id="vinyl-center">
+                <img id="album-cover-img" class="album-cover-img" src="" alt="" style="display: none;" />
+                <div class="vinyl-fallback-icon" id="vinyl-fallback-icon">🎶</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Song Info & Player Controls -->
+          <div class="media-content">
+            
+            <!-- Header: App Badge, Real Weather & Live Status -->
+            <div class="media-meta-header">
+              <div class="platform-badge" id="platform-badge">
+                <span class="platform-dot" id="platform-dot"></span>
+                <span class="platform-text" id="platform-text">Chưa phát nhạc</span>
+              </div>
+              <div class="weather-meta-badge" id="expanded-weather-badge" title="Thời tiết vị trí máy">
+                <span id="expanded-weather-icon">🌤️</span>
+                <span id="expanded-weather-temp">--°C</span>
+                <span class="meta-sep">•</span>
+                <span id="expanded-weather-city">Đang định vị...</span>
+              </div>
+              <span class="playback-state-tag" id="playback-state-tag">Tạm dừng</span>
+            </div>
+
+            <!-- Song Title & Artist -->
+            <div class="song-info">
+              <div class="marquee-wrapper">
+                <h2 class="live-song-title" id="live-song-title">Chưa có bài hát nào</h2>
+              </div>
+              <p class="live-artist-name" id="live-artist-name">Hãy bật nhạc trên Spotify, YouTube hoặc Chrome</p>
+            </div>
+
+            <!-- Scrubber / Timeline -->
+            <div class="progress-section">
+              <div class="scrubber-bar-track" id="scrubber-track">
+                <div class="scrubber-bar-fill" id="scrubber-fill" style="width: 0%;"></div>
+              </div>
+              <div class="scrubber-times">
+                <span class="time-label" id="scrubber-cur">00:00</span>
+                <span class="time-label" id="scrubber-tot">00:00</span>
+              </div>
+            </div>
+
+            <!-- Controls: Prev, Play/Pause, Next -->
+            <div class="player-controls-row">
+              <button class="ctrl-btn-secondary" id="ctrl-prev" title="Lùi bài (Previous)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                </svg>
+              </button>
+
+              <button class="ctrl-btn-main" id="ctrl-play" title="Phát / Tạm dừng">
+                <svg id="svg-play-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                <svg id="svg-pause-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" style="display: none;">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+              </button>
+
+              <button class="ctrl-btn-secondary" id="ctrl-next" title="Chuyển bài (Next)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                </svg>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="src/weather-service.js"></script>
+  <script src="src/system-media-sync.js"></script>
+  <script src="src/renderer.js"></script>
+</body>
+</html>

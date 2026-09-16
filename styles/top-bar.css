@@ -1,0 +1,258 @@
+/* Top Notch & Island Layout - Pure Crisp Seamless Design */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0;
+}
+
+/* ==========================================================================
+   DYNAMIC ISLAND PILL (100% Crisp - No blurry halo, No border, No shadow haze)
+   ========================================================================== */
+#island-pill {
+  background: #000000;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: default;
+  transition: width 0.42s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.42s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Collapsed State: Compact Bar */
+#island-pill.island-collapsed {
+  width: 480px;
+  height: 28px;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  box-shadow: none !important;
+}
+
+/* Expanded State: Luxury Bento Player */
+#island-pill.island-expanded {
+  width: 550px;
+  height: 215px;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  box-shadow: none !important;
+}
+
+#island-pill:hover {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   1. COMPACT NOTCH BAR (Top Header)
+   ========================================================================== */
+.island-header-bar {
+  width: 100%;
+  height: 28px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  cursor: default;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.island-header-bar:hover {
+  background: transparent;
+}
+
+/* Time & Date */
+.notch-time-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.notch-clock-cyan {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.notch-date-white {
+  font-family: var(--font-family);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+/* Center: Mini Live Song Pill */
+.notch-live-music {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: none;
+}
+
+.notch-live-music.visible {
+  display: flex;
+}
+
+.notch-music-title {
+  font-family: var(--font-family);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Equalizer Bars */
+.notch-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+  width: 10px;
+}
+
+.eq-bar {
+  width: 2px;
+  background: #38bdf8;
+  border-radius: 1px;
+  height: 3px;
+  transition: height 0.2s ease;
+}
+
+.notch-equalizer.active .bar1 {
+  animation: eq-bounce 0.8s ease-in-out infinite;
+}
+.notch-equalizer.active .bar2 {
+  animation: eq-bounce 0.6s ease-in-out infinite 0.2s;
+}
+.notch-equalizer.active .bar3 {
+  animation: eq-bounce 0.9s ease-in-out infinite 0.1s;
+}
+.notch-equalizer.active .bar4 {
+  animation: eq-bounce 0.7s ease-in-out infinite 0.3s;
+}
+
+@keyframes eq-bounce {
+  0%, 100% { height: 2px; }
+  50% { height: 10px; }
+}
+
+/* Status Badges */
+.notch-status-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.notch-stat-item {
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.notch-stat-item.cpu-temp {
+  color: #fb923c;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(251, 146, 60, 0.1);
+  padding: 2px 6px;
+  border-radius: 999px;
+  transition: all 0.3s ease;
+}
+
+.notch-stat-item.cpu-temp.hot {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.18);
+}
+
+.notch-stat-item.weather {
+  color: #38bdf8;
+  gap: 4px;
+}
+
+.notch-weather-city {
+  color: rgba(243, 244, 246, 0.75);
+  font-size: 9.5px;
+  font-weight: 600;
+  max-width: 60px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mini Disc Button with Album Image */
+.notch-blue-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #111827;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  font-size: 8px;
+  color: #38bdf8;
+  cursor: pointer;
+  animation: spin 3.5s linear infinite;
+  animation-play-state: paused;
+  transition: transform 0.2s ease;
+}
+
+.notch-blue-circle.playing {
+  animation-play-state: running;
+}
+
+.notch-blue-circle:hover {
+  transform: scale(1.15);
+}
+
+.notch-disc-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
