@@ -351,7 +351,7 @@ ipcMain.handle('get-windows-media-info', async () => {
       } else {
         try {
           const data = JSON.parse(stdout.trim());
-          if (data && data.title) {
+          if (data && data.title && data.status !== 'Closed' && data.status !== '0') {
             const isPlaying = data.status === 'Playing' || data.status === '4';
 
             // Resolve Cover Art (Direct from Windows Media session or fallback)

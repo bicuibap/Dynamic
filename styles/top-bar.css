@@ -38,18 +38,37 @@ body {
   flex-direction: column;
   overflow: hidden;
   cursor: default;
-  transition: width 0.42s cubic-bezier(0.16, 1, 0.3, 1),
-              height 0.42s cubic-bezier(0.16, 1, 0.3, 1),
-              border-radius 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width, height, transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Collapsed State: Compact Bar */
+/* Collapsed State: Has active media -> Expands to full notch bar */
 #island-pill.island-collapsed {
   width: 480px;
   height: 28px;
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
   box-shadow: none !important;
+}
+
+/* Collapsed State: Khi YouTube / Nhạc tắt -> Thu nhỏ gọn gàng, tinh tế */
+#island-pill.island-collapsed.no-media {
+  width: 330px;
+  height: 28px;
+}
+
+/* Idle tap tactile feedback */
+@keyframes notch-idle-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+.notch-idle-tap {
+  animation: notch-idle-pulse 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Expanded State: Luxury Bento Player */
@@ -80,11 +99,15 @@ body {
   flex-shrink: 0;
   cursor: default;
   background: transparent;
-  transition: background 0.2s ease;
+  transition: background 0.15s ease;
 }
 
-.island-header-bar:hover {
-  background: transparent;
+#island-pill:not(.no-media) .island-header-bar {
+  cursor: pointer;
+}
+
+#island-pill.no-media .island-header-bar {
+  cursor: default;
 }
 
 /* Time & Date */
@@ -123,10 +146,24 @@ body {
   padding: 2px 8px;
   border-radius: 999px;
   border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.2s ease;
 }
 
-.notch-live-music.visible {
+.notch-live-music:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.notch-live-music:active {
+  transform: scale(0.94);
+}
+
+#island-pill:not(.no-media) .notch-live-music.visible {
   display: flex;
+}
+
+#island-pill.no-media .notch-live-music {
+  display: none !important;
 }
 
 .notch-music-title {
@@ -239,7 +276,15 @@ body {
   cursor: pointer;
   animation: spin 3.5s linear infinite;
   animation-play-state: paused;
-  transition: transform 0.2s ease;
+  transition: transform 0.15s ease;
+}
+
+#island-pill.no-media .notch-blue-circle {
+  display: none !important;
+}
+
+#island-pill:not(.no-media) .notch-blue-circle {
+  display: flex;
 }
 
 .notch-blue-circle.playing {
@@ -248,6 +293,10 @@ body {
 
 .notch-blue-circle:hover {
   transform: scale(1.15);
+}
+
+.notch-blue-circle:active {
+  transform: scale(0.90);
 }
 
 .notch-disc-img {

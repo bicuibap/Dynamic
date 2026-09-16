@@ -18,7 +18,7 @@
 <body>
   <div id="app-container">
     <!-- DYNAMIC ISLAND CONTAINER -->
-    <div id="island-pill" class="island-collapsed">
+    <div id="island-pill" class="island-collapsed no-media">
       
       <!-- 1. COMPACT NOTCH BAR (Mặc định ở trên cùng) -->
       <div class="island-header-bar" id="island-header">
@@ -36,7 +36,7 @@
             <span class="eq-bar bar3"></span>
             <span class="eq-bar bar4"></span>
           </div>
-          <span class="notch-music-title" id="notch-music-title">Đang quét nhạc...</span>
+          <span class="notch-music-title" id="notch-music-title"></span>
         </div>
 
         <!-- Status Badges: CPU Temp & Weather & Disc -->
@@ -50,8 +50,8 @@
             <span id="notch-weather-val">--°C</span>
             <span class="notch-weather-city" id="notch-weather-city">...</span>
           </div>
-          <!-- Mini Vinyl Disc with Image -->
-          <div class="notch-blue-circle" id="notch-music-btn" title="Phát / Dừng">
+          <!-- Mini Vinyl Disc with Image (Chỉ hiện khi có nhạc) -->
+          <div class="notch-blue-circle" id="notch-music-btn" title="Phát / Dừng" style="display: none;">
             <img id="notch-disc-img" class="notch-disc-img" src="" alt="" style="display: none;" />
             <span class="disc-note" id="notch-disc-note">🎵</span>
           </div>

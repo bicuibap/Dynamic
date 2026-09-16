@@ -45,6 +45,14 @@ class SystemMediaSync {
     this.prevBtn = document.getElementById('ctrl-prev');
     this.playIcon = document.getElementById('svg-play-icon');
     this.pauseIcon = document.getElementById('svg-pause-icon');
+
+    // Default Idle State: Hide music disc & live pill
+    if (this.islandPill) {
+      this.islandPill.classList.add('no-media');
+    }
+    if (this.notchDisc) {
+      this.notchDisc.style.display = 'none';
+    }
   }
 
   bindEvents() {
@@ -102,8 +110,30 @@ class SystemMediaSync {
 
     // Toggle Expand / Collapse when clicking Notch header
     if (this.islandHeader) {
-      this.islandHeader.addEventListener('click', () => {
+      this.islandHeader.addEventListener('click', (e) => {
+        // Prevent click when clicking buttons inside header
+        if (e.target.closest('#notch-music-btn') || e.target.closest('button')) return;
+
+        // Khi YouTube / nhạc không bật gì thì không mở UI rỗng
+        if (!this.hasActiveMedia) {
+          this.islandPill.classList.add('notch-idle-tap');
+          setTimeout(() => {
+            if (this.islandPill) this.islandPill.classList.remove('notch-idle-tap');
+          }, 250);
+          return;
+        }
+
         this.toggleExpand();
+      });
+    }
+
+    // Mini Live Music Pill Click -> Mở / Thu gọn nhanh
+    if (this.notchLiveMusic) {
+      this.notchLiveMusic.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.hasActiveMedia) {
+          this.toggleExpand();
+        }
       });
     }
 
@@ -121,6 +151,11 @@ class SystemMediaSync {
   }
 
   toggleExpand(forceState) {
+    // Không cho phép mở rộng nếu không có nhạc đang phát
+    if (!this.hasActiveMedia && forceState !== false) {
+      return;
+    }
+
     if (typeof forceState === 'boolean') {
       this.isExpanded = forceState;
     } else {
@@ -199,7 +234,7 @@ class SystemMediaSync {
 
     try {
       const media = await window.electronAPI.getWindowsMediaInfo();
-      if (media && media.title && media.title.trim() !== '') {
+      if (media && media.title && media.title.trim() !== '' && media.status !== 'Closed' && media.status !== '0') {
         this.hasActiveMedia = true;
         this.updateMediaUI(media);
       } else {
@@ -214,6 +249,14 @@ class SystemMediaSync {
   updateMediaUI(media) {
     const isNewTrack = (this.lastTitle !== media.title);
     this.lastTitle = media.title;
+
+    // Khi có nhạc -> gỡ bỏ no-media và hiển thị disc
+    if (this.islandPill) {
+      this.islandPill.classList.remove('no-media');
+    }
+    if (this.notchDisc) {
+      this.notchDisc.style.display = 'flex';
+    }
 
     // 1. Song Title & Artist
     if (this.songTitleElem) this.songTitleElem.textContent = media.title;
@@ -274,9 +317,30 @@ class SystemMediaSync {
   }
 
   resetMediaUI() {
+    this.hasActiveMedia = false;
+    this.lastTitle = '';
+
+    // Tự động thu gọn nếu đang mở bento card
+    if (this.isExpanded) {
+      this.toggleExpand(false);
+    }
+
+    // Bật no-media để thu nhỏ thanh notch pill về kích thước gọn gàng 330px
+    if (this.islandPill) {
+      this.islandPill.classList.add('no-media');
+    }
+
+    // Ẩn hoàn toàn đĩa nhạc và thanh live music khi YT không bật gì
+    if (this.notchDisc) {
+      this.notchDisc.style.display = 'none';
+    }
     if (this.notchLiveMusic) {
       this.notchLiveMusic.classList.remove('visible');
     }
+    if (this.notchMusicTitle) {
+      this.notchMusicTitle.textContent = '';
+    }
+
     if (this.songTitleElem) this.songTitleElem.textContent = 'Chưa phát nhạc';
     if (this.artistNameElem) this.artistNameElem.textContent = 'Hãy mở Spotify, YouTube hoặc trình duyệt';
     if (this.platformText) this.platformText.textContent = 'Chưa phát nhạc';
