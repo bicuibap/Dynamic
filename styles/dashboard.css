@@ -246,7 +246,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   PROGRESS / SCRUBBER BAR
+   PROGRESS / SCRUBBER BAR (Tua video / nhạc)
    -------------------------------------------------------------------------- */
 .progress-section {
   display: flex;
@@ -256,19 +256,44 @@
 
 .scrubber-bar-track {
   width: 100%;
-  height: 4px;
+  height: 6px;
   background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   position: relative;
-  overflow: hidden;
   cursor: pointer;
+  transition: height 0.15s ease;
+}
+
+.scrubber-bar-track:hover,
+.scrubber-bar-track.scrubbing {
+  height: 8px;
 }
 
 .scrubber-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);
   border-radius: 999px;
-  transition: width 0.3s ease;
+  pointer-events: none;
+  transition: width 0.1s ease;
+}
+
+.scrubber-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+.scrubber-bar-track:hover .scrubber-thumb,
+.scrubber-bar-track.scrubbing .scrubber-thumb {
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .scrubber-times {
@@ -282,13 +307,113 @@
 }
 
 /* --------------------------------------------------------------------------
-   PLAYBACK BUTTON CONTROLS (⏮️ ⏯️ ⏭️)
+   BOTTOM ROW: PLAYBACK CONTROLS + VOLUME BAR
    -------------------------------------------------------------------------- */
+.player-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin-top: 2px;
+}
+
 .player-controls-row {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   VOLUME CONTROL GROUP (Thanh âm lượng chuẩn macOS / Windows 11)
+   -------------------------------------------------------------------------- */
+.volume-control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 4px 10px;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+  cursor: default;
+}
+
+.volume-control-group:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.vol-icon-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 14px;
+  padding: 0;
+  outline: none;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.vol-icon-btn:hover {
+  color: #38bdf8;
+  transform: scale(1.15);
+}
+
+.vol-icon-btn:active {
+  transform: scale(0.9);
+}
+
+.vol-slider-track {
+  width: 74px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: height 0.15s ease;
+}
+
+.vol-slider-track:hover,
+.vol-slider-track.dragging {
+  height: 7px;
+}
+
+.vol-slider-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8 0%, #60a5fa 100%);
+  border-radius: 999px;
+  pointer-events: none;
+  transition: width 0.08s ease;
+}
+
+.vol-slider-thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.8);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+.vol-slider-track:hover .vol-slider-thumb,
+.vol-slider-track.dragging .vol-slider-thumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.vol-percent-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+  min-width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .ctrl-btn-secondary {

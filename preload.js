@@ -2,6 +2,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   mediaControl: (action) => ipcRenderer.invoke('media-control', action),
+  seekMedia: (seconds) => ipcRenderer.invoke('seek-media', seconds),
+  getVolume: () => ipcRenderer.invoke('get-volume'),
+  setVolume: (volumePct) => ipcRenderer.invoke('set-volume', volumePct),
+  toggleMute: () => ipcRenderer.invoke('toggle-mute'),
   getSystemMetrics: () => ipcRenderer.invoke('get-system-metrics'),
   getCpuTemperature: () => ipcRenderer.invoke('get-cpu-temperature'),
   openFileLocation: (filePath) => ipcRenderer.invoke('open-file-location', filePath),

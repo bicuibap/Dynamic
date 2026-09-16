@@ -9,6 +9,7 @@ class SystemMediaSync {
     this.isExpanded = false;
 
     this.initElements();
+    this.initVolume();
     this.bindEvents();
     this.initPolling();
     this.startLocalTimer();
@@ -34,10 +35,14 @@ class SystemMediaSync {
     this.playbackStateTag = document.getElementById('playback-state-tag');
     this.songTitleElem = document.getElementById('live-song-title');
     this.artistNameElem = document.getElementById('live-artist-name');
+
+    // Scrubber & Seeking
     this.scrubberTrack = document.getElementById('scrubber-track');
     this.scrubberFill = document.getElementById('scrubber-fill');
+    this.scrubberThumb = document.getElementById('scrubber-thumb');
     this.scrubberCur = document.getElementById('scrubber-cur');
     this.scrubberTot = document.getElementById('scrubber-tot');
+    this.isScrubbing = false;
 
     // Controls
     this.playBtn = document.getElementById('ctrl-play');
@@ -45,6 +50,19 @@ class SystemMediaSync {
     this.prevBtn = document.getElementById('ctrl-prev');
     this.playIcon = document.getElementById('svg-play-icon');
     this.pauseIcon = document.getElementById('svg-pause-icon');
+
+    // Volume Control Elements
+    this.volGroup = document.getElementById('volume-group');
+    this.volTrack = document.getElementById('vol-track');
+    this.volFill = document.getElementById('vol-fill');
+    this.volThumb = document.getElementById('vol-thumb');
+    this.volText = document.getElementById('vol-text');
+    this.volMuteBtn = document.getElementById('vol-mute-btn');
+    this.volIconSpeaker = document.getElementById('vol-icon-speaker');
+    this.volIconMuted = document.getElementById('vol-icon-muted');
+    this.currentVolume = 50;
+    this.isMuted = false;
+    this.isDraggingVolume = false;
 
     // Default Idle State: Hide music disc & live pill
     if (this.islandPill) {
@@ -147,6 +165,64 @@ class SystemMediaSync {
           window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
         }
       });
+    }
+
+    // Scrubber Interaction (Tua video / nhạc trực tiếp)
+    if (this.scrubberTrack) {
+      this.scrubberTrack.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        if (!this.hasActiveMedia || this.totalSec <= 0) return;
+        this.isScrubbing = true;
+        this.scrubberTrack.classList.add('scrubbing');
+        this.handleScrub(e);
+      });
+    }
+
+    // Volume Track Interaction (Kéo thả chỉnh âm lượng Windows)
+    if (this.volTrack) {
+      this.volTrack.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        this.isDraggingVolume = true;
+        this.volTrack.classList.add('dragging');
+        this.handleVolumeDrag(e);
+      });
+    }
+
+    // Global Mousemove & Mouseup for buttery-smooth dragging
+    window.addEventListener('mousemove', (e) => {
+      if (this.isScrubbing) {
+        this.handleScrub(e);
+      }
+      if (this.isDraggingVolume) {
+        this.handleVolumeDrag(e);
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (this.isScrubbing) {
+        this.finishScrub(e);
+      }
+      if (this.isDraggingVolume) {
+        this.finishVolumeDrag(e);
+      }
+    });
+
+    // Volume Mute Button
+    if (this.volMuteBtn) {
+      this.volMuteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleMute();
+      });
+    }
+
+    // Cuộn chuột trên thanh âm lượng để tăng / giảm âm lượng mượt mà
+    if (this.volGroup) {
+      this.volGroup.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = e.deltaY < 0 ? 3 : -3;
+        this.adjustVolumeBy(delta);
+      }, { passive: false });
     }
   }
 
@@ -371,9 +447,89 @@ class SystemMediaSync {
     return { name: sourceApp || 'Trình phát nhạc', type: 'default' };
   }
 
+  async initVolume() {
+    if (window.electronAPI && window.electronAPI.getVolume) {
+      try {
+        const data = await window.electronAPI.getVolume();
+        if (data) {
+          this.updateVolumeUI(data.volume, data.isMuted);
+        }
+      } catch (e) {}
+    }
+  }
+
+  handleScrub(e) {
+    if (!this.scrubberTrack || this.totalSec <= 0) return;
+    const rect = this.scrubberTrack.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    this.currentSec = Math.round(pct * this.totalSec);
+    this.updateTimelineUI();
+  }
+
+  finishScrub(e) {
+    if (!this.isScrubbing) return;
+    this.isScrubbing = false;
+    if (this.scrubberTrack) this.scrubberTrack.classList.remove('scrubbing');
+    if (window.electronAPI && window.electronAPI.seekMedia) {
+      window.electronAPI.seekMedia(this.currentSec);
+      setTimeout(() => this.fetchMedia(), 250);
+    }
+  }
+
+  handleVolumeDrag(e) {
+    if (!this.volTrack) return;
+    const rect = this.volTrack.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const vol = Math.round(pct * 100);
+    this.updateVolumeUI(vol, false);
+    if (window.electronAPI && window.electronAPI.setVolume) {
+      window.electronAPI.setVolume(vol);
+    }
+  }
+
+  finishVolumeDrag(e) {
+    this.isDraggingVolume = false;
+    if (this.volTrack) this.volTrack.classList.remove('dragging');
+  }
+
+  adjustVolumeBy(delta) {
+    const newVol = Math.max(0, Math.min(100, this.currentVolume + delta));
+    this.updateVolumeUI(newVol, false);
+    if (window.electronAPI && window.electronAPI.setVolume) {
+      window.electronAPI.setVolume(newVol);
+    }
+  }
+
+  async toggleMute() {
+    this.isMuted = !this.isMuted;
+    this.updateVolumeUI(this.currentVolume, this.isMuted);
+    if (window.electronAPI && window.electronAPI.toggleMute) {
+      await window.electronAPI.toggleMute();
+    }
+  }
+
+  updateVolumeUI(vol, isMuted) {
+    this.currentVolume = vol;
+    this.isMuted = !!isMuted;
+    const displayPct = this.isMuted ? 0 : this.currentVolume;
+    if (this.volFill) {
+      this.volFill.style.width = `${displayPct}%`;
+    }
+    if (this.volThumb) {
+      this.volThumb.style.left = `${displayPct}%`;
+    }
+    if (this.volText) {
+      this.volText.textContent = this.isMuted ? 'MUTE' : `${this.currentVolume}%`;
+    }
+    if (this.volIconSpeaker && this.volIconMuted) {
+      this.volIconSpeaker.style.display = this.isMuted ? 'none' : 'block';
+      this.volIconMuted.style.display = this.isMuted ? 'block' : 'none';
+    }
+  }
+
   startLocalTimer() {
     setInterval(() => {
-      if (this.isPlaying && this.hasActiveMedia) {
+      if (this.isPlaying && this.hasActiveMedia && !this.isScrubbing) {
         this.currentSec++;
         if (this.totalSec > 0 && this.currentSec > this.totalSec) {
           this.currentSec = this.totalSec;
@@ -390,6 +546,9 @@ class SystemMediaSync {
     if (this.scrubberFill && this.totalSec > 0) {
       const pct = Math.min(100, Math.max(0, (this.currentSec / this.totalSec) * 100));
       this.scrubberFill.style.width = `${pct}%`;
+      if (this.scrubberThumb) {
+        this.scrubberThumb.style.left = `${pct}%`;
+      }
     }
   }
 

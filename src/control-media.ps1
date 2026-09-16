@@ -1,4 +1,4 @@
-param([string]$action)
+param([string]$action, [string]$value)
 
 try {
     Add-Type -AssemblyName System.Runtime.WindowsRuntime
@@ -20,6 +20,11 @@ try {
             "pause" { $null = Await ($session.TryPauseAsync()) ([System.Boolean]) }
             "next" { $null = Await ($session.TrySkipNextAsync()) ([System.Boolean]) }
             "prev" { $null = Await ($session.TrySkipPreviousAsync()) ([System.Boolean]) }
+            "seek" {
+                $seconds = [double]$value
+                $ticks = [long]($seconds * 10000000)
+                $null = Await ($session.TryChangePlaybackPositionAsync($ticks)) ([System.Boolean])
+            }
         }
         Write-Output "OK_WINRT"
     } else {

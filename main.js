@@ -248,6 +248,46 @@ ipcMain.handle('media-control', async (event, action) => {
   });
 });
 
+// IPC: Seek Media Position (Tua video / nhạc theo giây)
+ipcMain.handle('seek-media', async (event, seconds) => {
+  return new Promise((resolve) => {
+    execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', controlMediaScriptPath, 'seek', String(seconds)], { timeout: 2500 }, (err, stdout) => {
+      resolve(!err && stdout && stdout.includes('OK_WINRT'));
+    });
+  });
+});
+
+// IPC: System Master Volume Controls (IAudioEndpointVolume Native C#)
+ipcMain.handle('get-volume', async () => {
+  return new Promise((resolve) => {
+    execFile(mediaCtrlExePath, ['get-volume'], { timeout: 1000 }, (err, stdout) => {
+      if (!err && stdout && stdout.trim()) {
+        const parts = stdout.trim().split(':');
+        const vol = parseInt(parts[0], 10);
+        const mute = parts[1] === 'True';
+        return resolve({ volume: isNaN(vol) ? 50 : vol, isMuted: mute });
+      }
+      resolve({ volume: 50, isMuted: false });
+    });
+  });
+});
+
+ipcMain.handle('set-volume', async (event, volumePct) => {
+  return new Promise((resolve) => {
+    execFile(mediaCtrlExePath, ['set-volume', String(Math.round(volumePct))], { timeout: 1000 }, (err) => {
+      resolve(!err);
+    });
+  });
+});
+
+ipcMain.handle('toggle-mute', async () => {
+  return new Promise((resolve) => {
+    execFile(mediaCtrlExePath, ['mute'], { timeout: 1000 }, (err) => {
+      resolve(!err);
+    });
+  });
+});
+
 // IPC: Hardware Metrics (CPU & RAM)
 let lastCpuInfo = null;
 function getCpuUsage() {
