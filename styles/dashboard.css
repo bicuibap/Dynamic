@@ -11,23 +11,146 @@
   transform: translateY(-6px) scale(0.98);
   font-family: var(--font-family);
   will-change: opacity, transform;
-  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              padding 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-#island-pill.island-expanded #dashboard-panel {
+#island-pill.island-expanded:not(.mode-hardware) #dashboard-panel {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0) scale(1);
 }
 
-#island-pill.island-collapsed #dashboard-panel {
+#island-pill.island-collapsed #dashboard-panel,
+#island-pill.island-expanded.mode-hardware #dashboard-panel {
   opacity: 0;
   pointer-events: none;
   height: 0;
   padding: 0;
   transform: translateY(-6px) scale(0.98);
 }
+
+/* ==========================================================================
+   HARDWARE HERO CARD LAYOUT
+   ========================================================================== */
+#hardware-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: calc(100% - 28px);
+  position: absolute;
+  top: 28px;
+  left: 0;
+  padding: 8px 16px 14px 16px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.98);
+  font-family: var(--font-family);
+  will-change: opacity, transform;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#island-pill.island-expanded.mode-hardware #hardware-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+#island-pill:not(.island-expanded) #hardware-panel,
+#island-pill.island-expanded:not(.mode-hardware) #hardware-panel {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.98);
+}
+
+.hw-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.hw-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.hw-header svg {
+  stroke: rgba(255, 255, 255, 0.85);
+}
+
+.hw-col {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 22px;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.hw-col:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hw-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.5px;
+}
+
+.hw-value {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.hw-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: auto; /* Push bar to bottom */
+}
+
+.hw-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.hw-bar-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.hw-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Subtle Apple-like flat colors */
+.hw-bar-fill.cpu-fill { background: #ff9f0a; }
+.hw-bar-fill.gpu-fill { background: #bf5af2; }
+.hw-bar-fill.ram-fill { background: #32d74b; }
+.hw-bar-fill.bat-fill { background: #0a84ff; }
 
 /* ==========================================================================
    MEDIA HERO CARD LAYOUT
@@ -42,6 +165,7 @@
   border: none;
   border-radius: 18px;
   padding: 12px 14px;
+  overflow: hidden;
 }
 
 /* --------------------------------------------------------------------------
@@ -62,14 +186,30 @@
   height: 120px;
   border-radius: 50%;
   background: radial-gradient(circle, #181c26 0%, #030712 100%);
-  border: none;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
   transition: transform 0.2s ease;
   animation: spin 6s linear infinite;
   animation-play-state: paused;
+  z-index: 5;
+}
+
+/* Ambilight Effect */
+.ambilight-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  filter: blur(30px) opacity(0.85);
+  z-index: 1;
+  pointer-events: none;
+  display: none;
 }
 
 .vinyl-record.spinning {
@@ -271,10 +411,19 @@
 
 .scrubber-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);
+  background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+  background-size: 200% 200%;
+  animation: gradientFlow 3s ease infinite;
   border-radius: 999px;
   pointer-events: none;
   transition: width 0.1s ease;
+  box-shadow: 0 0 12px rgba(129, 140, 248, 0.5);
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .scrubber-thumb {
@@ -285,9 +434,9 @@
   height: 12px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.9), 0 0 25px rgba(129, 140, 248, 0.8);
   transform: translate(-50%, -50%) scale(0);
-  transition: transform 0.15s ease;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: none;
 }
 
@@ -313,7 +462,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
   margin-top: 2px;
 }
@@ -321,7 +470,8 @@
 .player-controls-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -330,12 +480,13 @@
 .volume-control-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.06);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
   transition: background 0.2s ease;
   cursor: default;
+  flex-shrink: 0;
 }
 
 .volume-control-group:hover {
@@ -365,7 +516,7 @@
 }
 
 .vol-slider-track {
-  width: 74px;
+  width: 58px;
   height: 5px;
   background: rgba(255, 255, 255, 0.16);
   border-radius: 999px;
@@ -469,4 +620,84 @@
   transform: scale(0.85) !important;
   background: rgba(56, 189, 248, 0.3) !important;
   color: #38bdf8 !important;
+}
+
+
+/* ==========================================================================
+   SIDEBAR MODE OVERRIDES (Left-Aligned Vertical Layout)
+   ========================================================================== */
+
+/* Hardware Panel */
+body.sidebar-mode .hw-grid {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 12px;
+}
+
+body.sidebar-mode .hw-col {
+  padding: 12px;
+}
+
+body.sidebar-mode .hw-value {
+  font-size: 24px;
+}
+
+/* Media Hero Card */
+body.sidebar-mode .media-hero-card {
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+
+body.sidebar-mode .cover-art-container {
+  width: 180px;
+  height: 180px;
+}
+
+body.sidebar-mode .vinyl-record {
+  width: 170px;
+  height: 170px;
+}
+
+body.sidebar-mode .vinyl-center {
+  width: 110px;
+  height: 110px;
+}
+
+body.sidebar-mode .media-content {
+  width: 100%;
+  gap: 12px;
+}
+
+body.sidebar-mode .media-meta-header {
+  justify-content: center;
+}
+
+body.sidebar-mode .song-info {
+  text-align: center;
+}
+
+body.sidebar-mode .live-song-title {
+  font-size: 18px;
+}
+
+body.sidebar-mode .player-bottom-row {
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+body.sidebar-mode .player-controls-row {
+  width: 100%;
+  justify-content: space-around;
+}
+
+body.sidebar-mode .volume-control-group {
+  width: 100%;
+  justify-content: center;
+  padding: 8px 12px;
+}
+
+body.sidebar-mode .vol-slider-track {
+  width: 120px;
 }

@@ -6,6 +6,9 @@ class WeatherService {
     this.temp = '--°C';
     this.weatherCode = 1;
     this.weatherDesc = 'Đang tải...';
+    this.humidity = '--%';
+    this.wind = '-- km/h';
+    this.dailyForecast = [];
     this.lat = 10.822;
     this.lon = 106.6257;
 
@@ -104,15 +107,35 @@ class WeatherService {
 
   async fetchWeather() {
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${this.lat}&longitude=${this.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${this.lat}&longitude=${this.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (res.ok) {
         const data = await res.json();
         if (data && data.current) {
           const tempVal = Math.round(data.current.temperature_2m);
           this.temp = `${tempVal}°C`;
+          this.humidity = `${data.current.relative_humidity_2m}%`;
+          this.wind = `${Math.round(data.current.wind_speed_10m)} km/h`;
           this.weatherCode = data.current.weather_code;
           this.weatherDesc = this.getWeatherDescription(this.weatherCode);
+          
+          if (data.daily && data.daily.time && data.daily.time.length >= 4) {
+            this.dailyForecast = [];
+            // Get next 3 days (indices 1, 2, 3)
+            for (let i = 1; i <= 3; i++) {
+              const dateStr = data.daily.time[i];
+              const dateObj = new Date(dateStr);
+              const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+              const dayName = dayNames[dateObj.getDay()];
+              
+              const maxT = Math.round(data.daily.temperature_2m_max[i]);
+              const minT = Math.round(data.daily.temperature_2m_min[i]);
+              const code = data.daily.weather_code[i];
+              const icon = this.getWeatherIcon(code);
+              
+              this.dailyForecast.push({ day: dayName, max: maxT, min: minT, icon: icon });
+            }
+          }
           return;
         }
       }
@@ -170,17 +193,41 @@ class WeatherService {
       notchItem.title = `Thời tiết ${this.city}: ${this.temp} - ${this.weatherDesc}`;
     }
 
-    // Expanded Elements
-    const expVal = document.getElementById('expanded-weather-temp');
-    const expIcon = document.getElementById('expanded-weather-icon');
-    const expCity = document.getElementById('expanded-weather-city');
-    const expBadge = document.getElementById('expanded-weather-badge');
+    // Expanded Weather Panel
+    const wBigIcon = document.getElementById('w-big-icon');
+    const wBigTemp = document.getElementById('w-big-temp');
+    const wCity = document.getElementById('w-city');
+    const wDesc = document.getElementById('w-desc');
+    const wHumid = document.getElementById('w-humid-val');
+    const wWind = document.getElementById('w-wind-val');
 
-    if (expVal) expVal.textContent = this.temp;
-    if (expIcon) expIcon.textContent = this.getWeatherIcon(this.weatherCode);
-    if (expCity) expCity.textContent = this.city;
-    if (expBadge) {
-      expBadge.title = `Thời tiết ${this.city}: ${this.temp} - ${this.weatherDesc}`;
+    if (wBigIcon) wBigIcon.textContent = this.getWeatherIcon(this.weatherCode);
+    if (wBigTemp) wBigTemp.textContent = this.temp;
+    
+    const wTodayDate = document.getElementById('w-today-date');
+    if (wTodayDate) {
+      const today = new Date();
+      const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+      wTodayDate.textContent = `${dayNames[today.getDay()]}, ${today.getDate()}/${today.getMonth() + 1}`;
+    }
+
+    if (wCity) wCity.textContent = this.city;
+    if (wDesc) wDesc.textContent = this.weatherDesc;
+    if (wHumid) wHumid.textContent = this.humidity;
+    if (wWind) wWind.textContent = this.wind;
+
+    // Daily Forecast
+    for (let i = 0; i < 3; i++) {
+      if (this.dailyForecast[i]) {
+        const fc = this.dailyForecast[i];
+        const dayEl = document.getElementById(`w-day-${i}-name`);
+        const iconEl = document.getElementById(`w-day-${i}-icon`);
+        const tempEl = document.getElementById(`w-day-${i}-temp`);
+        
+        if (dayEl) dayEl.textContent = fc.day;
+        if (iconEl) iconEl.textContent = fc.icon;
+        if (tempEl) tempEl.innerHTML = `<span class="w-temp-min">${fc.min}°</span><span class="w-temp-slash">/</span><span class="w-temp-max">${fc.max}°</span>`;
+      }
     }
   }
 }

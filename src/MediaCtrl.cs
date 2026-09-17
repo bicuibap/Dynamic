@@ -53,6 +53,15 @@ namespace MediaControl
         [DllImport("user32.dll")]
         public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
 
+        const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+        const uint KEYEVENTF_KEYUP = 0x0002;
+
+        static void SendMediaKey(byte vk)
+        {
+            keybd_event(vk, 0, KEYEVENTF_EXTENDEDKEY, 0);
+            keybd_event(vk, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+        }
+
         static IAudioEndpointVolume GetVolumeControl()
         {
             IMMDeviceEnumerator enumerator = (IMMDeviceEnumerator)(new MMDeviceEnumerator());
@@ -150,19 +159,20 @@ namespace MediaControl
                 return;
             }
 
-            // Media keys
+            // Media keys via keybd_event
             byte vKey = 0;
             switch (cmd)
             {
-                case "play-pause": vKey = 0xB3; break;
+                case "play-pause":
+                case "play":
+                case "pause": vKey = 0xB3; break;
                 case "next": vKey = 0xB0; break;
                 case "prev": vKey = 0xB1; break;
             }
 
             if (vKey != 0)
             {
-                keybd_event(vKey, 0, 0, 0);
-                keybd_event(vKey, 0, 2, 0);
+                SendMediaKey(vKey);
                 Console.WriteLine("OK");
             }
         }

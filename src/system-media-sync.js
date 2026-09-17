@@ -7,12 +7,16 @@ class SystemMediaSync {
     this.hasActiveMedia = false;
     this.lastTitle = '';
     this.isExpanded = false;
+    this.hideTimeout = null;
 
     this.initElements();
     this.initVolume();
     this.bindEvents();
-    this.initPolling();
+    this.initDaemonStream();
     this.startLocalTimer();
+    
+    // Auto-hide initially
+    this.showIslandTemporarily(8000);
   }
 
   initElements() {
@@ -25,9 +29,15 @@ class SystemMediaSync {
     this.notchDiscNote = document.getElementById('notch-disc-note');
     this.islandPill = document.getElementById('island-pill');
     this.islandHeader = document.getElementById('island-header');
+    this.notchCpuItem = document.getElementById('notch-cpu-item');
+    this.notchWeatherItem = document.getElementById('notch-weather-item');
+    this.notchTimeItem = document.getElementById('notch-time-item');
+    this.notchBotItem = document.getElementById('notch-bot-item');
+    this.hoverTrigger = document.getElementById('hover-trigger');
 
     // Expanded Elements
     this.albumCoverImg = document.getElementById('album-cover-img');
+    this.ambilightGlow = document.getElementById('ambilight-glow');
     this.vinylFallbackIcon = document.getElementById('vinyl-fallback-icon');
     this.vinylDisc = document.getElementById('vinyl-disc');
     this.platformDot = document.getElementById('platform-dot');
@@ -35,6 +45,7 @@ class SystemMediaSync {
     this.playbackStateTag = document.getElementById('playback-state-tag');
     this.songTitleElem = document.getElementById('live-song-title');
     this.artistNameElem = document.getElementById('live-artist-name');
+    this.dashboardPanel = document.getElementById('dashboard-panel');
 
     // Scrubber & Seeking
     this.scrubberTrack = document.getElementById('scrubber-track');
@@ -42,14 +53,25 @@ class SystemMediaSync {
     this.scrubberThumb = document.getElementById('scrubber-thumb');
     this.scrubberCur = document.getElementById('scrubber-cur');
     this.scrubberTot = document.getElementById('scrubber-tot');
+    this.miniPillPanel = document.getElementById('mini-pill-panel');
+    this.miniPillIcon = document.getElementById('mini-pill-icon');
+    this.miniPillText = document.getElementById('mini-pill-text');
+    this.miniVolumeTrack = document.getElementById('mini-volume-track');
+    this.miniVolumeFill = document.getElementById('mini-volume-fill');
+    
+    this.alertTimer = null;
+    this.volumeTimer = null;
     this.isScrubbing = false;
 
     // Controls
     this.playBtn = document.getElementById('ctrl-play');
     this.nextBtn = document.getElementById('ctrl-next');
     this.prevBtn = document.getElementById('ctrl-prev');
+    this.rewindBtn = document.getElementById('ctrl-rewind');
+    this.forwardBtn = document.getElementById('ctrl-forward');
     this.playIcon = document.getElementById('svg-play-icon');
     this.pauseIcon = document.getElementById('svg-pause-icon');
+    this.lastScrubTime = 0;
 
     // Volume Control Elements
     this.volGroup = document.getElementById('volume-group');
@@ -99,11 +121,6 @@ class SystemMediaSync {
 
         if (window.electronAPI) {
           window.electronAPI.mediaControl('next');
-          // High-frequency burst polling to catch the next track as soon as player changes (100ms, 300ms, 600ms, 1000ms)
-          setTimeout(() => this.fetchMedia(), 100);
-          setTimeout(() => this.fetchMedia(), 300);
-          setTimeout(() => this.fetchMedia(), 600);
-          setTimeout(() => this.fetchMedia(), 1000);
         }
       });
     }
@@ -117,20 +134,48 @@ class SystemMediaSync {
 
         if (window.electronAPI) {
           window.electronAPI.mediaControl('prev');
-          // High-frequency burst polling
-          setTimeout(() => this.fetchMedia(), 100);
-          setTimeout(() => this.fetchMedia(), 300);
-          setTimeout(() => this.fetchMedia(), 600);
-          setTimeout(() => this.fetchMedia(), 1000);
         }
       });
     }
 
-    // Toggle Expand / Collapse when clicking Notch header
+    // Rewind -10s Button (Tua lùi 10 giây)
+    if (this.rewindBtn) {
+      this.rewindBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.rewindBtn.classList.add('ctrl-active-tap');
+        setTimeout(() => this.rewindBtn.classList.remove('ctrl-active-tap'), 180);
+        this.seekRelative(-10);
+      });
+    }
+
+    // Forward +10s Button (Tua tới 10 giây)
+    if (this.forwardBtn) {
+      this.forwardBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.forwardBtn.classList.add('ctrl-active-tap');
+        setTimeout(() => this.forwardBtn.classList.remove('ctrl-active-tap'), 180);
+        this.seekRelative(10);
+      });
+    }
+
+    // Notch Header Click -> Toggle Expand / Collapse
     if (this.islandHeader) {
       this.islandHeader.addEventListener('click', (e) => {
-        // Prevent click when clicking buttons inside header
         if (e.target.closest('#notch-music-btn') || e.target.closest('button')) return;
+        if (e.target.closest('#notch-cpu-item')) return;
+        if (e.target.closest('#notch-weather-item')) return;
+        if (e.target.closest('#notch-time-item')) return;
+        if (e.target.closest('#notch-bot-item')) return;
+
+        // Bấm vào Header khi đang ở các chế độ khác -> Đóng hoặc về Media Mode
+        if (this.isExpanded && (this.islandPill.classList.contains('mode-hardware') || this.islandPill.classList.contains('mode-weather') || this.islandPill.classList.contains('mode-calendar') || this.islandPill.classList.contains('mode-bot'))) {
+          if (this.hasActiveMedia) {
+            this.toggleExpand(true, 'media');
+          } else {
+            this.toggleExpand(false);
+          }
+          return;
+        }
 
         // Khi YouTube / nhạc không bật gì thì không mở UI rỗng
         if (!this.hasActiveMedia) {
@@ -141,7 +186,55 @@ class SystemMediaSync {
           return;
         }
 
-        this.toggleExpand();
+        this.toggleExpand(undefined, 'media');
+      });
+    }
+
+    // Click vào Cục CPU -> Mở bảng Hardware
+    if (this.notchCpuItem) {
+      this.notchCpuItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.isExpanded && this.islandPill.classList.contains('mode-hardware')) {
+          this.toggleExpand(false);
+        } else {
+          this.toggleExpand(true, 'hardware');
+        }
+      });
+    }
+
+    // Click vào Cục Thời Tiết -> Mở bảng Thời Tiết
+    if (this.notchWeatherItem) {
+      this.notchWeatherItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.isExpanded && this.islandPill.classList.contains('mode-weather')) {
+          this.toggleExpand(false);
+        } else {
+          this.toggleExpand(true, 'weather');
+        }
+      });
+    }
+
+    // Click vào Cụm Thời Gian -> Mở bảng Lịch
+    if (this.notchTimeItem) {
+      this.notchTimeItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.isExpanded && this.islandPill.classList.contains('mode-calendar')) {
+          this.toggleExpand(false);
+        } else {
+          this.toggleExpand(true, 'calendar');
+        }
+      });
+    }
+
+    // Mở rộng bảng Trợ lý AI (Bot)
+    if (this.notchBotItem) {
+      this.notchBotItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.isExpanded && this.islandPill.classList.contains('mode-bot')) {
+          this.toggleExpand(false);
+        } else {
+          this.toggleExpand(true, 'bot');
+        }
       });
     }
 
@@ -150,17 +243,29 @@ class SystemMediaSync {
       this.notchLiveMusic.addEventListener('click', (e) => {
         e.stopPropagation();
         if (this.hasActiveMedia) {
-          this.toggleExpand();
+          // Nếu đang mở ở chế độ phần cứng, thời tiết, lịch -> Chuyển sang bảng Nhạc
+          if (this.isExpanded && (this.islandPill.classList.contains('mode-hardware') || this.islandPill.classList.contains('mode-weather') || this.islandPill.classList.contains('mode-calendar'))) {
+            this.toggleExpand(true, 'media');
+          } else {
+            // Ngược lại thì Mở/Đóng bình thường
+            this.toggleExpand(undefined, 'media');
+          }
         }
       });
     }
 
     // Mouse hover mouse passthrough management
+    if (this.hoverTrigger) {
+      this.hoverTrigger.addEventListener('mouseenter', () => this.showIslandTemporarily(10000));
+    }
+
     if (this.islandPill && window.electronAPI && window.electronAPI.setIgnoreMouseEvents) {
       this.islandPill.addEventListener('mouseenter', () => {
+        this.showIslandTemporarily(0);
         window.electronAPI.setIgnoreMouseEvents(false);
       });
       this.islandPill.addEventListener('mouseleave', () => {
+        this.showIslandTemporarily(8000);
         if (!this.isExpanded) {
           window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
         }
@@ -188,7 +293,7 @@ class SystemMediaSync {
       });
     }
 
-    // Global Mousemove & Mouseup for buttery-smooth dragging
+    // Global Mousemove & Mouseup
     window.addEventListener('mousemove', (e) => {
       if (this.isScrubbing) {
         this.handleScrub(e);
@@ -226,9 +331,9 @@ class SystemMediaSync {
     }
   }
 
-  toggleExpand(forceState) {
-    // Không cho phép mở rộng nếu không có nhạc đang phát
-    if (!this.hasActiveMedia && forceState !== false) {
+  toggleExpand(forceState, mode = 'media') {
+    // Không cho phép mở rộng nếu không có nhạc đang phát (áp dụng cho media)
+    if (!this.hasActiveMedia && mode === 'media' && forceState !== false) {
       return;
     }
 
@@ -240,25 +345,93 @@ class SystemMediaSync {
 
     if (this.islandPill) {
       if (this.isExpanded) {
+        this.islandPill.classList.remove('mode-hardware', 'mode-weather', 'mode-calendar', 'mode-bot', 'mode-mini', 'mode-alert');
+        this.dashboardPanel.style.display = '';
+        this.miniPillPanel.style.display = 'none';
+        
+        if (mode === 'hardware') {
+          this.islandPill.classList.add('mode-hardware');
+        } else if (mode === 'weather') {
+          this.islandPill.classList.add('mode-weather');
+        } else if (mode === 'calendar') {
+          this.islandPill.classList.add('mode-calendar');
+        } else if (mode === 'bot') {
+          this.islandPill.classList.add('mode-bot');
+          // Focus vào ô input ngay sau khi mở
+          setTimeout(() => {
+            const botInput = document.getElementById('bot-input');
+            if (botInput) botInput.focus();
+          }, 400);
+        } else if (mode === 'alert' || mode === 'volume') {
+          this.islandPill.classList.add('mode-mini');
+          this.dashboardPanel.style.display = 'none';
+          this.miniPillPanel.style.display = 'flex';
+          if (mode === 'alert') this.islandPill.classList.add('mode-alert');
+        }
+        
+        this.showIslandTemporarily(0);
         this.islandPill.classList.remove('island-collapsed');
         this.islandPill.classList.add('island-expanded');
         if (window.electronAPI && window.electronAPI.setIgnoreMouseEvents) {
           window.electronAPI.setIgnoreMouseEvents(false);
         }
       } else {
-        this.islandPill.classList.remove('island-expanded');
+        this.showIslandTemporarily(8000);
+        this.islandPill.classList.remove('island-expanded', 'mode-hardware', 'mode-weather', 'mode-calendar', 'mode-bot', 'mode-mini', 'mode-alert');
         this.islandPill.classList.add('island-collapsed');
+        
+        setTimeout(() => {
+          this.dashboardPanel.style.removeProperty('opacity');
+          if (this.miniPillPanel) this.miniPillPanel.style.removeProperty('opacity');
+        }, 100);
       }
     }
   }
 
+  showAlert(text, icon) {
+    const wasHidden = this.islandPill.classList.contains('island-hidden');
+    
+    if (this.miniPillIcon) this.miniPillIcon.textContent = icon;
+    if (this.miniPillText) this.miniPillText.textContent = text;
+    if (this.miniVolumeTrack) this.miniVolumeTrack.style.display = 'none';
+    if (this.miniPillText) this.miniPillText.style.display = 'block';
+    
+    this.toggleExpand(true, 'alert');
+    
+    if (this.alertTimer) clearTimeout(this.alertTimer);
+    this.alertTimer = setTimeout(() => {
+      if (this.isExpanded && this.islandPill.classList.contains('mode-alert')) {
+        this.toggleExpand(false);
+        // Nếu trước đó đang ẩn, thì ẩn luôn ngay lập tức thay vì đợi 8s
+        if (wasHidden) {
+          this.islandPill.classList.add('island-hidden');
+          if (this.hideTimeout) clearTimeout(this.hideTimeout);
+        }
+      }
+    }, 3000);
+  }
+
+  showVolumeMini(volumePct) {
+    if (this.miniPillIcon) this.miniPillIcon.textContent = '🔊';
+    if (this.miniPillText) this.miniPillText.style.display = 'none';
+    if (this.miniVolumeTrack) this.miniVolumeTrack.style.display = 'block';
+    if (this.miniVolumeFill) this.miniVolumeFill.style.width = `${volumePct}%`;
+    
+    this.toggleExpand(true, 'volume');
+    
+    if (this.volumeTimer) clearTimeout(this.volumeTimer);
+    this.volumeTimer = setTimeout(() => {
+      if (this.isExpanded && this.islandPill.classList.contains('mode-mini') && !this.islandPill.classList.contains('mode-alert')) {
+        this.toggleExpand(false);
+      }
+    }, 2000);
+  }
+
   async togglePlayPause() {
-    // 0ms Optimistic UI feedback
+    const action = this.isPlaying ? 'pause' : 'play';
     this.setPlayState(!this.isPlaying);
     if (window.electronAPI) {
-      await window.electronAPI.mediaControl('play-pause');
-      setTimeout(() => this.fetchMedia(), 150);
-      setTimeout(() => this.fetchMedia(), 500);
+      await window.electronAPI.mediaControl(action);
     }
   }
 
@@ -300,30 +473,59 @@ class SystemMediaSync {
     }
   }
 
-  initPolling() {
-    this.fetchMedia();
-    setInterval(() => this.fetchMedia(), 1200);
-  }
+  initDaemonStream() {
+    // Bắt sự kiện lăn chuột trên Header để chỉnh âm lượng
+    if (this.islandHeader) {
+      this.islandHeader.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = Math.sign(e.deltaY) * -2; // Scroll up = increase volume
+        if (window.electronAPI && window.electronAPI.getVolume && window.electronAPI.setVolume) {
+           window.electronAPI.getVolume().then(res => {
+             let newVol = res.volume + delta;
+             newVol = Math.max(0, Math.min(100, newVol));
+             window.electronAPI.setVolume(newVol);
+             this.showVolumeMini(newVol);
+           });
+        }
+      });
+    }
 
-  async fetchMedia() {
-    if (!window.electronAPI || !window.electronAPI.getWindowsMediaInfo) return;
+    // 1. Listen for real-time media updates from persistent background daemon
+    if (window.electronAPI && window.electronAPI.onMediaUpdate) {
+      window.electronAPI.onMediaUpdate((media) => {
+        if (media && media.title && media.title.trim() !== '' && media.status !== 'Closed' && media.status !== '0') {
+          const oldTitle = this.lastTitle;
+          this.hasActiveMedia = true;
+          
+          const titleChanged = (oldTitle && oldTitle !== media.title);
+          
+          this.updateMediaUI(media, titleChanged && !this.isExpanded);
+          
+          // Show Alert on song change if not expanded
+          if (titleChanged && !this.isExpanded) {
+            this.showAlert(media.title, '🎵');
+          }
+        } else {
+          this.hasActiveMedia = false;
+          this.resetMediaUI();
+        }
+      });
+    }
 
-    try {
-      const media = await window.electronAPI.getWindowsMediaInfo();
-      if (media && media.title && media.title.trim() !== '' && media.status !== 'Closed' && media.status !== '0') {
-        this.hasActiveMedia = true;
-        this.updateMediaUI(media);
-      } else {
-        this.hasActiveMedia = false;
-        this.resetMediaUI();
-      }
-    } catch (e) {
-      // ignore
+    // 2. Global Hotkey Alt+Space to toggle expand/collapse
+    if (window.electronAPI && window.electronAPI.onToggleExpand) {
+      window.electronAPI.onToggleExpand(() => {
+        if (this.hasActiveMedia) {
+          this.toggleExpand();
+        }
+      });
     }
   }
 
-  updateMediaUI(media) {
-    const isNewTrack = (this.lastTitle !== media.title);
+  updateMediaUI(media, skipAutoShow = false) {
+    if (this.lastTitle !== media.title && !skipAutoShow) {
+      this.showIslandTemporarily(8000);
+    }
     this.lastTitle = media.title;
 
     // Khi có nhạc -> gỡ bỏ no-media và hiển thị disc
@@ -360,6 +562,10 @@ class SystemMediaSync {
         this.albumCoverImg.src = media.thumbnail;
         this.albumCoverImg.style.display = 'block';
       }
+      if (this.ambilightGlow) {
+        this.ambilightGlow.src = media.thumbnail;
+        this.ambilightGlow.style.display = 'block';
+      }
       if (this.vinylFallbackIcon) {
         this.vinylFallbackIcon.style.display = 'none';
       }
@@ -371,45 +577,49 @@ class SystemMediaSync {
         this.notchDiscNote.style.display = 'none';
       }
     } else {
-      if (this.albumCoverImg) this.albumCoverImg.style.display = 'none';
-      if (this.vinylFallbackIcon) this.vinylFallbackIcon.style.display = 'flex';
-      if (this.notchDiscImg) this.notchDiscImg.style.display = 'none';
-      if (this.notchDiscNote) this.notchDiscNote.style.display = 'block';
-    }
-
-    // 5. Timeline / Progress
-    if (media.endTime && media.endTime > 0) {
-      this.totalSec = Math.round(media.endTime);
-      if (isNewTrack || !media.isPlaying || Math.abs(this.currentSec - media.position) >= 2) {
-        this.currentSec = Math.round(media.position || 0);
+      if (this.albumCoverImg) {
+        this.albumCoverImg.src = '';
+        this.albumCoverImg.style.display = 'none';
       }
-    } else if (isNewTrack) {
-      this.currentSec = Math.round(media.position || 0);
-      this.totalSec = 0;
+      if (this.ambilightGlow) {
+        this.ambilightGlow.src = '';
+        this.ambilightGlow.style.display = 'none';
+      }
+      if (this.vinylFallbackIcon) {
+        this.vinylFallbackIcon.style.display = 'block';
+      }
+      if (this.notchDiscImg) {
+        this.notchDiscImg.src = '';
+        this.notchDiscImg.style.display = 'none';
+      }
+      if (this.notchDiscNote) {
+        this.notchDiscNote.style.display = 'block';
+      }
     }
 
-    this.updateTimelineUI();
+    // 5. Playback State
     this.setPlayState(media.isPlaying);
+
+    // 6. Timeline & Scrubber (Anti-snapback delay 1.8s khi người dùng vừa tua)
+    const now = Date.now();
+    if (!this.isScrubbing && (now - this.lastScrubTime > 1800)) {
+      this.currentSec = Math.round(media.position || 0);
+      this.totalSec = Math.round(media.endTime || 0);
+      this.updateTimelineUI();
+    }
   }
 
   resetMediaUI() {
-    this.hasActiveMedia = false;
     this.lastTitle = '';
+    this.hasActiveMedia = false;
+    this.setPlayState(false);
 
-    // Tự động thu gọn nếu đang mở bento card
+    // Tự động thu nhỏ Island nếu đang mở mà media bị tắt hoàn toàn
     if (this.isExpanded) {
       this.toggleExpand(false);
     }
 
-    // Bật no-media để thu nhỏ thanh notch pill về kích thước gọn gàng 330px
-    if (this.islandPill) {
-      this.islandPill.classList.add('no-media');
-    }
-
-    // Ẩn hoàn toàn đĩa nhạc và thanh live music khi YT không bật gì
-    if (this.notchDisc) {
-      this.notchDisc.style.display = 'none';
-    }
+    // Ẩn hoàn toàn phần Live Music trên Notch
     if (this.notchLiveMusic) {
       this.notchLiveMusic.classList.remove('visible');
     }
@@ -417,83 +627,137 @@ class SystemMediaSync {
       this.notchMusicTitle.textContent = '';
     }
 
-    if (this.songTitleElem) this.songTitleElem.textContent = 'Chưa phát nhạc';
-    if (this.artistNameElem) this.artistNameElem.textContent = 'Hãy mở Spotify, YouTube hoặc trình duyệt';
+    // Ẩn nút đĩa than tròn trên Notch
+    if (this.notchDisc) {
+      this.notchDisc.style.display = 'none';
+    }
+
+    // Đổi pill về trạng thái idle
+    if (this.islandPill) {
+      this.islandPill.classList.add('no-media');
+    }
+
+    if (this.songTitleElem) this.songTitleElem.textContent = 'Chưa có bài hát nào';
+    if (this.artistNameElem) this.artistNameElem.textContent = 'Hãy bật nhạc trên Spotify, YouTube hoặc Chrome';
     if (this.platformText) this.platformText.textContent = 'Chưa phát nhạc';
-    if (this.albumCoverImg) this.albumCoverImg.style.display = 'none';
-    if (this.vinylFallbackIcon) this.vinylFallbackIcon.style.display = 'flex';
-    if (this.notchDiscImg) this.notchDiscImg.style.display = 'none';
-    if (this.notchDiscNote) this.notchDiscNote.style.display = 'block';
-    this.setPlayState(false);
+    if (this.platformDot) this.platformDot.className = 'platform-dot';
+
+    if (this.albumCoverImg) {
+      this.albumCoverImg.src = '';
+      this.albumCoverImg.style.display = 'none';
+    }
+    if (this.ambilightGlow) {
+      this.ambilightGlow.src = '';
+      this.ambilightGlow.style.display = 'none';
+    }
+    if (this.vinylFallbackIcon) {
+      this.vinylFallbackIcon.style.display = 'block';
+    }
+    if (this.notchDiscImg) {
+      this.notchDiscImg.src = '';
+      this.notchDiscImg.style.display = 'none';
+    }
+    if (this.notchDiscNote) {
+      this.notchDiscNote.style.display = 'block';
+    }
+
+    this.currentSec = 0;
+    this.totalSec = 0;
+    this.updateTimelineUI();
   }
 
   detectPlatform(sourceApp, title) {
-    const raw = (sourceApp + ' ' + title).toLowerCase();
-    if (raw.includes('spotify')) {
-      return { name: 'Spotify', type: 'spotify' };
+    const s = (sourceApp || '').toLowerCase();
+    const t = (title || '').toLowerCase();
+
+    if (s.includes('spotify')) return { name: 'Spotify', type: 'spotify' };
+    if (s.includes('chrome') || t.includes('youtube') || s.includes('brave') || s.includes('edge') || s.includes('firefox')) {
+      if (t.includes('youtube') || s.includes('chrome') || s.includes('edge')) {
+        return { name: 'YouTube / Browser', type: 'youtube' };
+      }
+      return { name: 'Web Browser', type: 'browser' };
     }
-    if (raw.includes('youtube') || raw.includes('chrome') || raw.includes('brave') || raw.includes('firefox')) {
-      return { name: 'YouTube / Trình duyệt', type: 'youtube' };
-    }
-    if (raw.includes('edge') || raw.includes('msedge')) {
-      return { name: 'Microsoft Edge', type: 'edge' };
-    }
-    if (raw.includes('apple') || raw.includes('itunes')) {
-      return { name: 'Apple Music', type: 'apple' };
-    }
-    if (raw.includes('zing') || raw.includes('nhaccuatui')) {
-      return { name: 'Zing MP3 / NhacCuaTui', type: 'zing' };
-    }
-    return { name: sourceApp || 'Trình phát nhạc', type: 'default' };
+    if (s.includes('apple') || s.includes('itunes')) return { name: 'Apple Music', type: 'applemusic' };
+    if (s.includes('vlc') || s.includes('wmplayer') || s.includes('foobar')) return { name: 'Windows Media', type: 'local' };
+
+    return { name: sourceApp || 'Windows Media', type: 'default' };
   }
 
-  async initVolume() {
-    if (window.electronAPI && window.electronAPI.getVolume) {
-      try {
-        const data = await window.electronAPI.getVolume();
-        if (data) {
-          this.updateVolumeUI(data.volume, data.isMuted);
-        }
-      } catch (e) {}
-    }
-  }
-
+  // Scrubber Seeking
   handleScrub(e) {
     if (!this.scrubberTrack || this.totalSec <= 0) return;
     const rect = this.scrubberTrack.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    this.currentSec = Math.round(pct * this.totalSec);
-    this.updateTimelineUI();
+    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const ratio = clickX / rect.width;
+    this.currentSec = Math.round(ratio * this.totalSec);
+
+    const pct = ratio * 100;
+    if (this.scrubberFill) this.scrubberFill.style.width = `${pct}%`;
+    if (this.scrubberThumb) this.scrubberThumb.style.left = `${pct}%`;
+    if (this.scrubberCur) this.scrubberCur.textContent = this.formatTime(this.currentSec);
   }
 
   finishScrub(e) {
     if (!this.isScrubbing) return;
     this.isScrubbing = false;
     if (this.scrubberTrack) this.scrubberTrack.classList.remove('scrubbing');
+    this.handleScrub(e);
+    this.lastScrubTime = Date.now();
+
     if (window.electronAPI && window.electronAPI.seekMedia) {
       window.electronAPI.seekMedia(this.currentSec);
-      setTimeout(() => this.fetchMedia(), 250);
+    }
+  }
+
+  seekRelative(delta) {
+    if (!this.hasActiveMedia) return;
+    let target = Math.max(0, this.currentSec + delta);
+    if (this.totalSec > 0) {
+      target = Math.min(this.totalSec, target);
+    }
+    this.currentSec = target;
+    this.lastScrubTime = Date.now();
+    this.updateTimelineUI();
+
+    if (window.electronAPI && window.electronAPI.seekMedia) {
+      window.electronAPI.seekMedia(this.currentSec);
+    }
+  }
+
+  // Volume Controls (Native C#)
+  async initVolume() {
+    if (window.electronAPI && window.electronAPI.getVolume) {
+      try {
+        const info = await window.electronAPI.getVolume();
+        if (info) {
+          this.updateVolumeUI(info.volume, info.isMuted);
+        }
+      } catch (e) {}
     }
   }
 
   handleVolumeDrag(e) {
     if (!this.volTrack) return;
     const rect = this.volTrack.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const vol = Math.round(pct * 100);
-    this.updateVolumeUI(vol, false);
+    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const ratio = clickX / rect.width;
+    const newVol = Math.round(ratio * 100);
+    this.updateVolumeUI(newVol, false);
+
     if (window.electronAPI && window.electronAPI.setVolume) {
-      window.electronAPI.setVolume(vol);
+      window.electronAPI.setVolume(newVol);
     }
   }
 
   finishVolumeDrag(e) {
+    if (!this.isDraggingVolume) return;
     this.isDraggingVolume = false;
     if (this.volTrack) this.volTrack.classList.remove('dragging');
+    this.handleVolumeDrag(e);
   }
 
   adjustVolumeBy(delta) {
-    const newVol = Math.max(0, Math.min(100, this.currentVolume + delta));
+    let newVol = Math.max(0, Math.min(100, this.currentVolume + delta));
     this.updateVolumeUI(newVol, false);
     if (window.electronAPI && window.electronAPI.setVolume) {
       window.electronAPI.setVolume(newVol);
@@ -556,6 +820,25 @@ class SystemMediaSync {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  showIslandTemporarily(durationMs = 8000) {
+    if (this.islandPill) {
+      this.islandPill.classList.remove('island-hidden');
+    }
+    
+    if (this.hideTimeout) {
+      clearTimeout(this.hideTimeout);
+      this.hideTimeout = null;
+    }
+
+    if (durationMs > 0) {
+      this.hideTimeout = setTimeout(() => {
+        if (!this.isExpanded && this.islandPill) {
+          this.islandPill.classList.add('island-hidden');
+        }
+      }, durationMs);
+    }
   }
 }
 

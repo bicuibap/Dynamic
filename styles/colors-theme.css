@@ -1,11 +1,16 @@
 :root {
-  /* Stealth Dark Theme */
-  --bg-island: #000000;
+  /* Stealth Dark Theme - Premium Glass */
+  --bg-island: rgba(5, 5, 10, 0.85);
   --bg-island-solid: #0a0b10;
-  --bg-card: rgba(20, 22, 30, 0.85);
-  --bg-card-hover: rgba(30, 33, 45, 0.95);
+  --bg-card: rgba(20, 22, 30, 0.75);
+  --bg-card-hover: rgba(30, 33, 45, 0.85);
   --bg-pill: rgba(255, 255, 255, 0.08);
-  --bg-pill-hover: rgba(255, 255, 255, 0.14);
+  --bg-pill-hover: rgba(255, 255, 255, 0.15);
+
+  --border-glow: rgba(255, 255, 255, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-highlight: rgba(255, 255, 255, 0.25);
+  --shadow-island: 0 20px 40px rgba(0, 0, 0, 0.8);
 
   --accent-cyan: #38bdf8;
   --accent-purple: #818cf8;

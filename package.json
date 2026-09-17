@@ -34,7 +34,10 @@
       "styles/**/*",
       "package.json"
     ],
-    "asar": true
+    "asar": true,
+    "asarUnpack": [
+      "src/**/*"
+    ]
   },
   "keywords": [
     "dynamic-island",
@@ -46,5 +49,9 @@
   "devDependencies": {
     "electron": "^34.2.0",
     "electron-builder": "^26.0.2"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.4.2"
   }
 }
