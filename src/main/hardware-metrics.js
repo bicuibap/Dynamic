@@ -55,7 +55,7 @@ let lastNetTime = 0;
 function getNetworkSpeed() {
   return new Promise((resolve) => {
     execFile('netstat', ['-e'], { timeout: 1000 }, (err, stdout) => {
-      let speedMBps = 0;
+      let speedText = "0.00 MB/s";
       if (!err && stdout) {
         // Output format: Bytes    1081060686   2380759800
         const match = stdout.match(/Bytes\s+(\d+)\s+(\d+)/i);
@@ -68,7 +68,8 @@ function getNetworkSpeed() {
             if (timeDiff > 0) {
               const byteDiff = rxBytes - lastNetBytes;
               if (byteDiff > 0) {
-                speedMBps = (byteDiff / timeDiff) / (1024 * 1024);
+                const bytesPerSec = byteDiff / timeDiff;
+                speedText = (bytesPerSec / (1024 * 1024)).toFixed(2) + " MB/s";
               }
             }
           }
@@ -76,7 +77,7 @@ function getNetworkSpeed() {
           lastNetTime = now;
         }
       }
-      resolve(speedMBps.toFixed(1));
+      resolve(speedText);
     });
   });
 }
@@ -124,7 +125,7 @@ async function getSystemMetrics() {
     usedRamGb: (usedMem / (1024 ** 3)).toFixed(1),
     platform: os.platform(),
     uptime: Math.round(os.uptime()),
-    netSpeedMBps: netSpeed
+    netSpeedText: netSpeed
   };
 }
 

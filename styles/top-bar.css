@@ -1,158 +1,343 @@
+/* Top Notch & Island Layout - Pure Crisp Seamless Design */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0;
+}
 
 /* ==========================================================================
-   SIDEBAR MODE OVERRIDES (Left-Aligned Vertical Layout)
+   DYNAMIC ISLAND PILL (100% Crisp - No blurry halo, No border, No shadow haze)
    ========================================================================== */
-body.sidebar-mode #app-container {
-  align-items: flex-start;
-  justify-content: center;
+#island-pill {
+  background: #000000;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  will-change: width, height, transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              border-radius 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.3s ease,
+              transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 10;
 }
 
-body.sidebar-mode #island-wrapper {
-  align-items: center !important;
+/* --- VÀNH GÓC (FLARES) KẾT NỐI MÀN HÌNH --- */
+.notch-flare {
+  width: 16px;
+  height: 16px;
+  position: relative;
+  top: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-body.sidebar-mode #island-pill {
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
-  border-top-right-radius: 16px !important;
-  border-bottom-right-radius: 16px !important;
+.notch-flare.flare-left {
+  background: radial-gradient(circle at 0 100%, transparent 16px, #000 16px);
 }
 
-body.sidebar-mode #island-pill.island-expanded {
-  border-top-right-radius: 32px !important;
-  border-bottom-right-radius: 32px !important;
+.notch-flare.flare-right {
+  background: radial-gradient(circle at 100% 100%, transparent 16px, #000 16px);
 }
 
-body.sidebar-mode .notch-flare {
+/* Đồng bộ chuyển động của vãnh với Đảo khi ẩn */
+#island-wrapper:has(#island-pill.island-hidden) .notch-flare {
+  transform: translateY(-40px) translateZ(0);
+}
+
+/* Collapsed State: Has active media -> Expands to full notch bar */
+#island-pill.island-collapsed {
+  width: 480px;
+  height: 28px;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  box-shadow: none !important;
+}
+
+/* Collapsed State: Khi YouTube / Nhạc tắt -> Thu nhỏ gọn gàng, tinh tế */
+#island-pill.island-collapsed.no-media {
+  width: 370px;
+  height: 28px;
+}
+
+/* Hidden State: Ẩn hoàn toàn lên mép trên, giữ nguyên opacity: 1 để không bị xuyên thấu */
+#island-pill.island-hidden {
+  transform: translateY(-40px) translateZ(0);
+  opacity: 1;
+  pointer-events: none;
+}
+
+/* Idle tap tactile feedback */
+@keyframes notch-idle-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+.notch-idle-tap {
+  animation: notch-idle-pulse 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Expanded State: Luxury Bento Player */
+#island-pill.island-expanded {
+  width: 550px;
+  height: 215px;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  box-shadow: none !important;
+}
+
+#island-pill:hover {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   1. COMPACT NOTCH BAR (Top Header)
+   ========================================================================== */
+.island-header-bar {
+  width: 100%;
+  height: 28px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  cursor: default;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+#island-pill:not(.no-media) .island-header-bar {
+  cursor: pointer;
+}
+
+#island-pill.no-media .island-header-bar {
+  cursor: default;
+}
+
+/* Time & Date */
+.notch-time-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.notch-clock-cyan {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.notch-date-white {
+  font-family: var(--font-family);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+/* Center: Mini Live Song Pill */
+.notch-live-music {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.2s ease;
+}
+
+.notch-live-music:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.notch-live-music:active {
+  transform: scale(0.94);
+}
+
+#island-pill:not(.no-media) .notch-live-music.visible {
+  display: flex;
+}
+
+#island-pill.no-media .notch-live-music {
   display: none !important;
 }
 
-body.sidebar-mode #island-pill.island-collapsed {
-  width: 44px;
-  height: 280px;
+.notch-music-title {
+  font-family: var(--font-family);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-body.sidebar-mode #island-pill.island-collapsed.no-media {
-  width: 44px;
-  height: 200px;
+/* Equalizer Bars */
+.notch-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+  width: 10px;
 }
 
-body.sidebar-mode #island-pill.island-expanded {
-  width: 420px;
-  height: 600px;
+.eq-bar {
+  width: 2px;
+  background: #38bdf8;
+  border-radius: 1px;
+  height: 3px;
+  transition: height 0.2s ease;
 }
 
-body.sidebar-mode #island-pill.island-expanded.mode-mini {
-  width: 420px;
-  height: 80px;
+.notch-equalizer.active .bar1 {
+  animation: eq-bounce 0.8s ease-in-out infinite;
+}
+.notch-equalizer.active .bar2 {
+  animation: eq-bounce 0.6s ease-in-out infinite 0.2s;
+}
+.notch-equalizer.active .bar3 {
+  animation: eq-bounce 0.9s ease-in-out infinite 0.1s;
+}
+.notch-equalizer.active .bar4 {
+  animation: eq-bounce 0.7s ease-in-out infinite 0.3s;
 }
 
-body.sidebar-mode #island-pill.island-expanded.mode-weather {
-  width: 420px;
-  height: 480px;
+@keyframes eq-bounce {
+  0%, 100% { height: 2px; }
+  50% { height: 10px; }
 }
 
-body.sidebar-mode #island-pill.island-expanded.mode-calendar {
-  width: 420px;
-  height: 380px;
+/* Status Badges */
+.notch-status-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-body.sidebar-mode #island-pill.island-expanded.mode-bot {
-  width: 420px;
-  height: 500px;
+.notch-stat-item {
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
 }
 
-/* Sidebar Collapsed Header (Vertical) */
-body.sidebar-mode .island-header-bar {
-  flex-direction: column;
+.notch-stat-item.cpu-temp {
+  color: #fb923c;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(251, 146, 60, 0.1);
+  padding: 2px 6px;
+  border-radius: 999px;
+  transition: all 0.3s ease;
+}
+
+.notch-stat-item.cpu-temp.hot {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.18);
+}
+
+.notch-stat-item.weather {
+  color: #38bdf8;
+  gap: 4px;
+}
+
+.notch-weather-city {
+  color: rgba(243, 244, 246, 0.75);
+  font-size: 9.5px;
+  font-weight: 600;
+  max-width: 60px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mini Disc Button with Album Image */
+.notch-blue-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #111827;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  font-size: 8px;
+  color: #38bdf8;
+  cursor: pointer;
+  animation: spin 3.5s linear infinite;
+  animation-play-state: paused;
+  transition: transform 0.15s ease;
+}
+
+#island-pill.no-media .notch-blue-circle {
+  display: none !important;
+}
+
+#island-pill:not(.no-media) .notch-blue-circle {
+  display: flex;
+}
+
+.notch-blue-circle.playing {
+  animation-play-state: running;
+}
+
+.notch-blue-circle:hover {
+  transform: scale(1.15);
+}
+
+.notch-blue-circle:active {
+  transform: scale(0.90);
+}
+
+.notch-disc-img {
   width: 100%;
   height: 100%;
-  padding: 12px 0;
-  gap: 12px;
-}
-
-body.sidebar-mode .notch-time-group {
-  flex-direction: column;
-}
-body.sidebar-mode .notch-date-white {
-  display: none;
-}
-body.sidebar-mode .notch-clock-cyan {
-  font-size: 10px;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  transform: rotate(180deg);
-}
-
-body.sidebar-mode .notch-live-music {
-  flex-direction: column;
-  width: 32px;
-  padding: 8px 2px;
-}
-
-body.sidebar-mode .notch-music-title {
-  display: none;
-}
-
-body.sidebar-mode .notch-status-group {
-  flex-direction: column;
-  gap: 12px;
-}
-
-body.sidebar-mode .notch-weather-city {
-  display: none;
-}
-
-body.sidebar-mode .notch-stat-item {
-  flex-direction: column;
-  font-size: 9px;
-  padding: 4px;
-}
-
-body.sidebar-mode .notch-stat-item.cpu-temp {
-  border-radius: 8px;
-}
-
-body.sidebar-mode .notch-network-speed {
-  display: none;
-}
-
-/* Fix Weather Layout for Sidebar Mode */
-body.sidebar-mode .w-current-row {
-  flex-direction: column;
-  text-align: center;
-}
-body.sidebar-mode .w-current-left {
-  flex-direction: column;
-}
-body.sidebar-mode .w-temp-col {
-  align-items: center;
-}
-body.sidebar-mode .w-current-right {
-  align-items: center;
-  text-align: center;
-}
-body.sidebar-mode .w-daily-row {
-  flex-direction: column;
-}
-body.sidebar-mode .w-day-col {
-  flex-direction: row;
-  justify-content: space-between;
-  padding: 12px;
-}
-body.sidebar-mode .weather-grid {
-  gap: 16px;
-}
-
-/* Fix Calendar Layout for Sidebar Mode */
-body.sidebar-mode .cal-grid {
-  flex-direction: column;
-}
-body.sidebar-mode .cal-left {
-  flex: 0 0 100px;
-  flex-direction: row;
-  justify-content: space-around;
-}
-body.sidebar-mode .cal-big-date {
-  font-size: 32px;
+  object-fit: cover;
+  border-radius: 50%;
 }

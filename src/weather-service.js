@@ -229,6 +229,15 @@ class WeatherService {
         if (tempEl) tempEl.innerHTML = `<span class="w-temp-min">${fc.min}°</span><span class="w-temp-slash">/</span><span class="w-temp-max">${fc.max}°</span>`;
       }
     }
+
+    // Weather Badge in Music Panel
+    const musicWeatherIcon = document.getElementById('expanded-weather-icon');
+    const musicWeatherTemp = document.getElementById('expanded-weather-temp');
+    const musicWeatherCity = document.getElementById('expanded-weather-city');
+    
+    if (musicWeatherIcon) musicWeatherIcon.textContent = this.getWeatherIcon(this.weatherCode);
+    if (musicWeatherTemp) musicWeatherTemp.textContent = this.temp;
+    if (musicWeatherCity) musicWeatherCity.textContent = this.cityShort;
   }
 }
 

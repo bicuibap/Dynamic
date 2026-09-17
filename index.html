@@ -51,11 +51,11 @@
 
           <!-- Status Badges: CPU Temp & Weather & Disc -->
           <div class="notch-status-group">
-            <div class="notch-stat-item cpu-temp" id="notch-cpu-item" title="Nhiệt độ CPU máy">
+            <div class="notch-stat-item cpu-temp" id="notch-cpu-item" title="Nhiệt độ CPU máy" style="cursor: pointer;">
               <span class="stat-icon">🔥</span>
               <span id="notch-cpu-val">--°C</span>
             </div>
-            <div class="notch-stat-item weather" id="notch-weather-item" title="Thời tiết & Vị trí">
+            <div class="notch-stat-item weather" id="notch-weather-item" title="Thời tiết & Vị trí" style="cursor: pointer;">
               <span id="notch-weather-icon">🌤️</span>
               <span id="notch-weather-val">--°C</span>
               <span class="notch-weather-city" id="notch-weather-city">...</span>
@@ -267,22 +267,22 @@
                 <div class="hw-bar-fill ram-fill" id="hw-ram-bar" style="width: 0%"></div>
               </div>
             </div>
-            <!-- BATTERY Column -->
-            <div class="hw-col glass-card" id="bat-col">
+            <!-- UPTIME Column (Replaced Battery) -->
+            <div class="hw-col glass-card" id="uptime-col">
               <div class="hw-header">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0a84ff" stroke-width="2"
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="7" width="16" height="10" rx="2" ry="2"></rect>
-                  <line x1="22" y1="11" x2="22" y2="13"></line>
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                <span class="hw-title">BATTERY</span>
+                <span class="hw-title">UPTIME</span>
               </div>
-              <div class="hw-value" id="hw-bat-percent">--%</div>
+              <div class="hw-value" id="hw-uptime-val">--:--</div>
               <div class="hw-sub-row">
-                <span class="hw-tag" id="hw-bat-status">UNKNOWN</span>
+                <span class="hw-tag neutral-tag" id="hw-uptime-days">-- days</span>
               </div>
-              <div class="hw-bar-track">
-                <div class="hw-bar-fill bat-fill" id="hw-bat-bar" style="width: 100%"></div>
+              <div class="hw-bar-track" style="visibility: hidden;">
+                <div class="hw-bar-fill" style="width: 0%"></div>
               </div>
             </div>
           </div>
@@ -306,7 +306,7 @@
         </div>
 
         <!-- 5. EXPANDED WEATHER HUB (PREMIUM DESIGN) -->
-        <div id="weather-panel" class="weather-expanded" style="display: none;">
+        <div id="weather-panel" class="weather-expanded">
           <div class="weather-grid">
             <!-- Top Section: Current Weather -->
             <div class="w-current-row">
@@ -321,8 +321,8 @@
                 <div id="w-city" class="w-city">Đang tải...</div>
                 <div id="w-desc" class="w-desc">Vui lòng đợi</div>
                 <div class="w-metrics-row">
-                  <span class="w-tag"><span class="w-tag-icon">💧</span><span id="w-humid-val">--%</span></span>
-                  <span class="w-tag"><span class="w-tag-icon">💨</span><span id="w-wind-val">-- km/h</span></span>
+                  <span class="w-tag"><span class="w-tag-icon">💧</span><span class="w-tag-label" style="opacity:0.7; font-weight:500;">Độ ẩm:</span> <span id="w-humid-val">--%</span></span>
+                  <span class="w-tag"><span class="w-tag-icon">💨</span><span class="w-tag-label" style="opacity:0.7; font-weight:500;">Gió:</span> <span id="w-wind-val">-- km/h</span></span>
                 </div>
               </div>
             </div>
@@ -353,7 +353,7 @@
         </div>
 
         <!-- 6. EXPANDED CALENDAR HUB (PREMIUM DESIGN) -->
-        <div id="calendar-panel" class="calendar-expanded" style="display: none;">
+        <div id="calendar-panel" class="calendar-expanded">
           <div class="cal-grid">
             <!-- Left side: Today -->
             <div class="cal-left glass-card">
@@ -374,7 +374,7 @@
         </div>
 
         <!-- 7. EXPANDED BOT HUB (SIRI STYLE) -->
-        <div id="bot-panel" class="bot-expanded" style="display: none;">
+        <div id="bot-panel" class="bot-expanded">
           <!-- Glowing Orb -->
           <div class="bot-orb-container" id="bot-orb">
             <div class="orb orb-1"></div>
@@ -385,8 +385,8 @@
 
           <!-- Text Response -->
         <div class="bot-response-area">
-          <div class="bot-text-wrapper">
-            <span id="bot-text">Bạn cần tôi giúp gì?</span>
+          <div class="bot-text-wrapper" style="width: 100%; height: 100%;">
+            <span id="bot-text"><div style="text-align: center; font-size: 20px; font-weight: 600; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">Bạn cần tôi giúp gì?</div></span>
           </div>
         </div>
 

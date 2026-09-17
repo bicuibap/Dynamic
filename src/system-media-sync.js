@@ -360,8 +360,8 @@ class SystemMediaSync {
           // Focus vào ô input ngay sau khi mở
           setTimeout(() => {
             const botInput = document.getElementById('bot-input');
-            if (botInput) botInput.focus();
-          }, 400);
+            if (botInput) botInput.focus({ preventScroll: true });
+          }, 300);
         } else if (mode === 'alert' || mode === 'volume') {
           this.islandPill.classList.add('mode-mini');
           this.dashboardPanel.style.display = 'none';
@@ -834,7 +834,11 @@ class SystemMediaSync {
 
     if (durationMs > 0) {
       this.hideTimeout = setTimeout(() => {
-        if (!this.isExpanded && this.islandPill) {
+        if (this.isExpanded) {
+          // Tự động thu gọn nếu đang mở rộng UI sau 8s không làm gì
+          this.toggleExpand(false);
+        } else if (this.islandPill) {
+          // Trượt lên ẩn đi nếu đang ở trạng thái thu gọn
           this.islandPill.classList.add('island-hidden');
         }
       }, durationMs);

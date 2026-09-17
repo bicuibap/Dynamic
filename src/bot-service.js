@@ -47,7 +47,9 @@ class BotService {
     // 1. Trạng thái Đang suy nghĩ (Thinking)
     this.botInput.value = '';
     this.botInput.disabled = true;
-    this.botText.textContent = '';
+    
+    // CHỈ HIỂN THỊ ĐANG SUY NGHĨ VỚI CHỮ TO CĂN GIỮA
+    this.botText.innerHTML = `<div style="text-align: center; font-size: 20px; font-weight: 600; font-style: italic; opacity: 0.8; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">Đang suy nghĩ...</div>`;
     
     if (this.botOrb) {
       this.botOrb.classList.add('thinking');

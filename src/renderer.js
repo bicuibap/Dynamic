@@ -90,38 +90,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // 3. Network Speed
           const hwNetSpeed = document.getElementById('notch-network-speed');
-          if (hwNetSpeed && metrics.netSpeedMBps !== undefined) {
-            hwNetSpeed.textContent = `${metrics.netSpeedMBps} MB/s`;
+          if (hwNetSpeed && metrics.netSpeedText !== undefined) {
+            hwNetSpeed.textContent = metrics.netSpeedText;
           }
 
-          // 4. Bảng Battery Dashboard
-          const hwBatPercent = document.getElementById('hw-bat-percent');
-          const hwBatStatus = document.getElementById('hw-bat-status');
-          const hwBatBar = document.getElementById('hw-bat-bar');
-
-          if (navigator.getBattery) {
-            navigator.getBattery().then(battery => {
-              const level = Math.round(battery.level * 100);
-              if (hwBatPercent) hwBatPercent.textContent = `${level}%`;
-              if (hwBatBar) hwBatBar.style.width = `${level}%`;
-              if (hwBatStatus) {
-                hwBatStatus.textContent = battery.charging ? 'CHARGING' : (level <= 20 ? 'LOW BATTERY' : 'ON BATTERY');
+          // 4. Bảng Uptime Dashboard (Replaced Battery)
+          const hwUptimeVal = document.getElementById('hw-uptime-val');
+          const hwUptimeDays = document.getElementById('hw-uptime-days');
+          
+          if (metrics.uptime !== undefined) {
+            const totalSeconds = metrics.uptime;
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            
+            if (hwUptimeVal) {
+              const hStr = hours.toString().padStart(2, '0');
+              const mStr = minutes.toString().padStart(2, '0');
+              hwUptimeVal.textContent = `${hStr}:${mStr}`;
+            }
+            if (hwUptimeDays) {
+              if (days > 0) {
+                hwUptimeDays.textContent = `${days} DAY${days > 1 ? 'S' : ''}`;
+              } else {
+                hwUptimeDays.textContent = 'TODAY';
               }
-              
-              // Trigger Alert on Charging state change
-              if (window.lastChargingState === undefined) {
-                window.lastChargingState = battery.charging;
-              } else if (window.lastChargingState !== battery.charging) {
-                window.lastChargingState = battery.charging;
-                if (window.mediaSyncInstance && window.mediaSyncInstance.showAlert) {
-                  const msg = battery.charging ? `Đang sạc (${level}%)` : `Ngừng sạc (${level}%)`;
-                  const icon = battery.charging ? '⚡' : '🔋';
-                  window.mediaSyncInstance.showAlert(msg, icon);
-                }
-              }
-            });
-          } else {
-            if (hwBatPercent) hwBatPercent.textContent = `N/A`;
+            }
           }
         }
       } catch (e) {}
