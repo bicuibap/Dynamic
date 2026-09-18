@@ -30,18 +30,6 @@ class BotService {
         }
       });
     }
-
-    // Quick Action Chips
-    const chips = document.querySelectorAll('.bot-chip');
-    chips.forEach((chip) => {
-      chip.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const cmd = chip.getAttribute('data-cmd');
-        if (cmd) {
-          this.handleQuery(cmd);
-        }
-      });
-    });
   }
 
   async handleQuery(query) {

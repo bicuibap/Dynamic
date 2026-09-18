@@ -544,12 +544,9 @@ ipcMain.handle('ask-gemini', async (event, query) => {
   }
 
   try {
-    const prompt = `Bạn là Trợ lý Dynamic Island hoạt động trên một thanh notch nhỏ gọn trên màn hình Windows.
-Quy tắc trả lời:
-- CỰC KỲ NGẮN GỌN: Tối đa 1 đến 2 câu ngắn (dưới 25 từ).
-- Đi thẳng vào đáp án trọng tâm, không chào hỏi dài dòng, không lặp lại câu hỏi.
-- Luôn kết thúc bằng 1 emoji phù hợp.
-Câu hỏi: ${trimmed}`;
+    const prompt = `Bạn là một trợ lý ảo thông minh tên là "Dynamic Island Bot", hoạt động trên màn hình desktop của Windows.
+Hãy trả lời ngắn gọn, thân thiện và súc tích bằng tiếng Việt, vì bạn đang hiển thị trên một thanh thông báo nhỏ (như Siri).
+Câu hỏi của người dùng: ${trimmed}`;
 
     return await generateGeminiContent(apiKey, prompt);
   } catch (error) {
