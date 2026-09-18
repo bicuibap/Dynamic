@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Management;
 
 namespace MediaControl
 {
@@ -75,22 +76,93 @@ namespace MediaControl
 
         static int GetCpuTemperature()
         {
+            // 1. Thử đọc qua PerformanceCounter ACPI Thermal Zone
             try
             {
-                var cat = new PerformanceCounterCategory("Thermal Zone Information");
-                var instances = cat.GetInstanceNames();
-                foreach (var inst in instances)
+                if (PerformanceCounterCategory.Exists("Thermal Zone Information"))
                 {
-                    using (var pc = new PerformanceCounter("Thermal Zone Information", "Temperature", inst))
+                    var cat = new PerformanceCounterCategory("Thermal Zone Information");
+                    var instances = cat.GetInstanceNames();
+                    foreach (var inst in instances)
                     {
-                        float raw = pc.NextValue();
-                        int c = (int)Math.Round(raw - 273.15);
+                        using (var pc = new PerformanceCounter("Thermal Zone Information", "Temperature", inst))
+                        {
+                            float raw = pc.NextValue();
+                            int c = (int)Math.Round(raw - 273.15);
+                            if (c >= 20 && c <= 115) return c;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Thử đọc qua WMI root\wmi (MSAcpi_ThermalZoneTemperature)
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher(@"root\wmi", "SELECT CurrentTemperature FROM MSAcpi_ThermalZoneTemperature"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        var tempObj = obj["CurrentTemperature"];
+                        if (tempObj != null)
+                        {
+                            long kelvin10 = Convert.ToInt64(tempObj);
+                            int c = (int)Math.Round((kelvin10 / 10.0) - 273.15);
+                            if (c >= 20 && c <= 115) return c;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Thử đọc qua WMI root\cimv2 (Win32_TemperatureProbe)
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher(@"root\cimv2", "SELECT CurrentReading FROM Win32_TemperatureProbe"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        var tempObj = obj["CurrentReading"];
+                        if (tempObj != null)
+                        {
+                            int c = Convert.ToInt32(tempObj);
+                            if (c >= 20 && c <= 115) return c;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 4. Thử đọc qua LibreHardwareMonitor hoặc OpenHardwareMonitor (nếu máy có chạy app theo dõi phần cứng)
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher(@"root\LibreHardwareMonitor", "SELECT Value FROM Sensor WHERE SensorType='Temperature' AND (Name LIKE '%CPU%' OR Name LIKE '%Core%')"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        float val = Convert.ToSingle(obj["Value"]);
+                        int c = (int)Math.Round(val);
                         if (c >= 20 && c <= 115) return c;
                     }
                 }
             }
             catch { }
-            return 45;
+
+            try
+            {
+                using (var searcher = new ManagementObjectSearcher(@"root\OpenHardwareMonitor", "SELECT Value FROM Sensor WHERE SensorType='Temperature' AND (Name LIKE '%CPU%' OR Name LIKE '%Core%')"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        float val = Convert.ToSingle(obj["Value"]);
+                        int c = (int)Math.Round(val);
+                        if (c >= 20 && c <= 115) return c;
+                    }
+                }
+            }
+            catch { }
+
+            return 0; // Trả về 0 để backend biết máy không có cảm biến ACPI và kích hoạt fallback động
         }
 
         [DllImport("psapi.dll")]

@@ -1,5 +1,6 @@
 const { app, ipcMain, shell, clipboard, BrowserWindow } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { execFile } = require('child_process');
 require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -39,11 +40,17 @@ const {
 let isQuitting = false;
 
 function getAssetPath(...parts) {
-  const p = path.join(__dirname, ...parts);
-  return p.replace('app.asar', 'app.asar.unpacked');
+  const unpacked = path.join(__dirname, ...parts).replace('app.asar', 'app.asar.unpacked');
+  if (fs.existsSync(unpacked)) return unpacked;
+  if (app.isPackaged && process.resourcesPath) {
+    const resUnpacked = path.join(process.resourcesPath, 'app.asar.unpacked', ...parts);
+    if (fs.existsSync(resUnpacked)) return resUnpacked;
+  }
+  return path.join(__dirname, ...parts);
 }
 
 const mediaCtrlExePath = getAssetPath('src', 'MediaCtrl.exe');
+initHardwareMetrics(mediaCtrlExePath);
 const controlMediaScriptPath = getAssetPath('src', 'control-media.ps1');
 const daemonScriptPath = getAssetPath('src', 'media-daemon.ps1');
 const createStartupShortcutScript = getAssetPath('src', 'create-startup-shortcut.ps1');

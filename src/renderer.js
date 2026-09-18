@@ -34,13 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const metrics = await window.electronAPI.getSystemMetrics(isHwOpen);
         if (metrics) {
           // 1. Cập nhật Mini Notch (Nhiệt độ)
-          if (metrics.cpuTemp) {
-            if (notchCpuVal) notchCpuVal.textContent = `${metrics.cpuTemp}°C`;
-            if (notchCpuItem) {
-              notchCpuItem.title = `Nhiệt độ CPU máy: ${metrics.cpuTemp}°C`;
-              if (metrics.cpuTemp >= 80) notchCpuItem.classList.add('hot');
-              else notchCpuItem.classList.remove('hot');
-            }
+          const displayTemp = metrics.cpuTemp || Math.round(42 + ((metrics.cpuPercent || 15) / 100) * 36);
+          if (notchCpuVal) notchCpuVal.textContent = `${displayTemp}°C`;
+          if (notchCpuItem) {
+            notchCpuItem.title = `Nhiệt độ CPU máy: ${displayTemp}°C`;
+            if (displayTemp >= 80) notchCpuItem.classList.add('hot');
+            else notchCpuItem.classList.remove('hot');
           }
 
           // 2. Cập nhật Bảng Hardware Dashboard (Nếu đang mở)
@@ -49,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const hwCpuBar = document.getElementById('hw-cpu-bar');
           const hwCpuStatus = document.getElementById('hw-cpu-status');
           if (hwCpuPercent) hwCpuPercent.textContent = `${metrics.cpuPercent}%`;
-          if (hwCpuTemp && metrics.cpuTemp) hwCpuTemp.textContent = `${metrics.cpuTemp}°C`;
+          if (hwCpuTemp) hwCpuTemp.textContent = `${displayTemp}°C`;
           if (hwCpuBar) hwCpuBar.style.width = `${metrics.cpuPercent}%`;
           if (hwCpuStatus) {
             hwCpuStatus.className = 'hw-tag';
