@@ -151,10 +151,23 @@ class SystemMediaSync {
       return;
     }
 
-    // Nếu đảo đang ở trạng thái ẩn (trượt lên trên mép màn hình)
-    if (!this.islandPill ||
+    const isHidden = !this.islandPill ||
         this.islandPill.classList.contains('island-hidden') ||
-        (this.islandWrapper && this.islandWrapper.classList.contains('island-hidden'))) {
+        (this.islandWrapper && this.islandWrapper.classList.contains('island-hidden'));
+
+    // Nếu đảo đang ở trạng thái ẩn (trượt lên trên mép màn hình)
+    if (isHidden) {
+      // VÙNG ĐÁNH THỨC: Khi đảo đang ẩn, nếu chuột di chuyển vào khu vực mép trên màn hình
+      const winWidth = window.innerWidth || 580;
+      const wakeLeft = (winWidth - 480) / 2;
+      const wakeRight = wakeLeft + 480;
+
+      if (clientY <= 30 && clientX >= wakeLeft && clientX <= wakeRight) {
+        this.showIslandTemporarily(8000);
+        this.setMouseIgnored(false);
+        return;
+      }
+
       this.setMouseIgnored(true);
       return;
     }
@@ -173,6 +186,9 @@ class SystemMediaSync {
       clientY > rect.bottom
     ) {
       this.setMouseIgnored(true);
+      if (this.autoHide && !this.hideTimeout && !this.isExpanded) {
+        this.showIslandTemporarily(8000);
+      }
       return;
     }
 
@@ -182,7 +198,11 @@ class SystemMediaSync {
 
     if (isOverPill) {
       this.setMouseIgnored(false);
-      this.showIslandTemporarily(0);
+      // Khi đang rê chuột trên đảo: giữ nguyên, hủy timer tự ẩn
+      if (this.hideTimeout) {
+        clearTimeout(this.hideTimeout);
+        this.hideTimeout = null;
+      }
     } else {
       this.setMouseIgnored(true);
       if (this.autoHide && !this.hideTimeout && !this.isExpanded) {
@@ -346,6 +366,20 @@ class SystemMediaSync {
             // Ngược lại thì Mở/Đóng bình thường
             this.toggleExpand(undefined, 'media');
           }
+        }
+      });
+    }
+
+    // Chuột phải vào Dynamic Island -> Chuyển đổi nhanh chế độ Luôn hiển thị / Tự ẩn sau 8s
+    if (this.islandPill) {
+      this.islandPill.addEventListener('contextmenu', (e) => {
+        // Nếu chuột phải vào ô input bot hoặc textarea thì để người dùng paste/copy
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        e.stopPropagation();
+        const nextAutoHide = !this.autoHide;
+        if (window.electronAPI && window.electronAPI.setAutoHideSetting) {
+          window.electronAPI.setAutoHideSetting(nextAutoHide);
         }
       });
     }
@@ -620,6 +654,10 @@ class SystemMediaSync {
               clearTimeout(this.hideTimeout);
               this.hideTimeout = null;
             }
+            this.showAlert('Đã ghim: Luôn hiển thị', '📌');
+          } else {
+            this.showAlert('Đã bật: Tự ẩn sau 8s', '⏱️');
+            this.showIslandTemporarily(8000);
           }
         });
       }
@@ -630,7 +668,21 @@ class SystemMediaSync {
             if (!this.autoHide) {
               if (this.islandPill) this.islandPill.classList.remove('island-hidden');
               if (this.islandWrapper) this.islandWrapper.classList.remove('island-hidden');
+              if (this.hideTimeout) {
+                clearTimeout(this.hideTimeout);
+                this.hideTimeout = null;
+              }
+            } else {
+              this.showIslandTemporarily(8000);
             }
+          }
+        });
+      }
+      if (window.electronAPI.onWakeIsland) {
+        window.electronAPI.onWakeIsland(() => {
+          if (this.islandPill && this.islandPill.classList.contains('island-hidden')) {
+            this.showIslandTemporarily(8000);
+            this.setMouseIgnored(false);
           }
         });
       }
@@ -639,7 +691,7 @@ class SystemMediaSync {
 
   updateMediaUI(media, skipAutoShow = false) {
     if (this.lastTitle !== media.title && !skipAutoShow) {
-      this.showIslandTemporarily(8000);
+      this.showIslandTemporarily(this.autoHide ? 8000 : 0);
     }
     this.lastTitle = media.title;
 
@@ -948,11 +1000,20 @@ class SystemMediaSync {
       this.hideTimeout = null;
     }
 
+    // Nếu chế độ tự ẩn (autoHide) đang TẮT và đảo không ở trạng thái mở rộng Dashboard:
+    // Tuyệt đối không hẹn giờ ẩn, giữ đảo luôn luôn hiển thị cố định trên màn hình!
+    if (!this.autoHide && !this.isExpanded) {
+      return;
+    }
+
     if (durationMs > 0) {
       this.hideTimeout = setTimeout(() => {
         if (this.isExpanded) {
           // Tự động thu gọn nếu đang mở rộng UI sau 8s không làm gì
           this.toggleExpand(false);
+          if (this.autoHide) {
+            this.showIslandTemporarily(8000);
+          }
         } else if (this.islandPill && this.autoHide) {
           // Chỉ trượt lên ẩn đi nếu chế độ tự ẩn (autoHide) đang được BẬT
           this.islandPill.classList.add('island-hidden');

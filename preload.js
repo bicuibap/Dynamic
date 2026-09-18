@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getAutoHideSetting: () => ipcRenderer.invoke('get-auto-hide-setting'),
   setAutoHideSetting: (autoHide) => ipcRenderer.invoke('set-auto-hide-setting', autoHide),
+  onWakeIsland: (callback) => {
+    ipcRenderer.on('wake-island', () => callback());
+  },
   
   // Utilities
   openFileLocation: (filePath) => ipcRenderer.invoke('open-file-location', filePath),

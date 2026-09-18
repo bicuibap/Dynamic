@@ -37,6 +37,7 @@ function getSettings() {
 function updateAutoHide(autoHide) {
   currentSettings.autoHide = autoHide;
   saveSettings(currentSettings);
+  updateTrayMenu();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('auto-hide-changed', currentSettings.autoHide);
   }
@@ -97,6 +98,7 @@ function createWindow() {
     mainWindow.setIgnoreMouseEvents(true, { forward: true });
     // Đồng bộ cài đặt autoHide cho renderer
     mainWindow.webContents.send('auto-hide-changed', currentSettings.autoHide);
+    setupWakeCheck();
   });
 
   mainWindow.on('minimize', (e) => {
@@ -113,6 +115,10 @@ function createWindow() {
   });
 
   mainWindow.on('closed', () => {
+    if (wakeCheckInterval) {
+      clearInterval(wakeCheckInterval);
+      wakeCheckInterval = null;
+    }
     mainWindow = null;
   });
   
@@ -158,6 +164,78 @@ function setAutoLaunch(enabled) {
   }
 }
 
+let wakeCheckInterval = null;
+
+function setupWakeCheck() {
+  if (wakeCheckInterval) clearInterval(wakeCheckInterval);
+  wakeCheckInterval = setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (!currentSettings.autoHide) return;
+    try {
+      const cursor = screen.getCursorScreenPoint();
+      const bounds = mainWindow.getBounds();
+      // Nếu chuột rê lên mép trên cùng (y <= 12px) trong phạm vi ngang của đảo
+      if (cursor.y <= 12 && cursor.x >= bounds.x && cursor.x <= bounds.x + bounds.width) {
+        mainWindow.webContents.send('wake-island');
+      }
+    } catch (e) {}
+  }, 250);
+}
+
+function updateTrayMenu() {
+  if (!tray) return;
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Ẩn / Hiện Dynamic Island (Ctrl+Shift+Space)',
+      click: toggleWindowVisibility
+    },
+    {
+      label: 'Di chuyển sang màn hình tiếp theo',
+      click: moveToNextScreen
+    },
+    { type: 'separator' },
+    {
+      label: '📌 Luôn hiển thị (Cố định trên màn hình)',
+      type: 'radio',
+      checked: !currentSettings.autoHide,
+      click: () => {
+        updateAutoHide(false);
+      }
+    },
+    {
+      label: '⏱️ Tự động trượt ẩn sau 8s (Rê chuột mép trên để hiện)',
+      type: 'radio',
+      checked: !!currentSettings.autoHide,
+      click: () => {
+        updateAutoHide(true);
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Khởi động cùng Windows',
+      type: 'checkbox',
+      checked: isAutoLaunchEnabled(),
+      click: (menuItem) => {
+        setAutoLaunch(menuItem.checked);
+      }
+    },
+    {
+      label: 'Tải lại ứng dụng',
+      click: () => {
+        if (mainWindow) mainWindow.reload();
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Thoát',
+      click: () => {
+        app.quit();
+      }
+    }
+  ]);
+  tray.setContextMenu(contextMenu);
+}
+
 function createTray() {
   try {
     const icon = nativeImage.createFromBuffer(
@@ -165,48 +243,7 @@ function createTray() {
     );
     tray = new Tray(icon);
     tray.setToolTip('Windows Dynamic Island');
-
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: 'Ẩn / Hiện Dynamic Island (Ctrl+Shift+Space)',
-        click: toggleWindowVisibility
-      },
-      {
-        label: 'Di chuyển sang màn hình tiếp theo',
-        click: moveToNextScreen
-      },
-      {
-        label: 'Luôn hiển thị (Không tự ẩn sau 8s)',
-        type: 'checkbox',
-        checked: !currentSettings.autoHide,
-        click: (menuItem) => {
-          updateAutoHide(!menuItem.checked);
-        }
-      },
-      {
-        label: 'Khởi động cùng Windows',
-        type: 'checkbox',
-        checked: isAutoLaunchEnabled(),
-        click: (menuItem) => {
-          setAutoLaunch(menuItem.checked);
-        }
-      },
-      {
-        label: 'Tải lại ứng dụng',
-        click: () => {
-          if (mainWindow) mainWindow.reload();
-        }
-      },
-      { type: 'separator' },
-      {
-        label: 'Thoát',
-        click: () => {
-          app.quit();
-        }
-      }
-    ]);
-
-    tray.setContextMenu(contextMenu);
+    updateTrayMenu();
     tray.on('click', toggleWindowVisibility);
   } catch (e) {
     console.error('Tray creation failed:', e);
