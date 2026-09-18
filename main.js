@@ -100,7 +100,7 @@ ipcMain.handle('media-control', async (event, action) => {
     console.error('[SECURITY] Blocked malicious media control action:', action);
     return false;
   }
-  
+
   return new Promise((resolve) => {
     execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', controlMediaScriptPath, action], { timeout: 2000 }, (err, stdout) => {
       if (!err && stdout && stdout.includes('OK_WINRT')) {
@@ -119,7 +119,7 @@ ipcMain.handle('seek-media', async (event, seconds) => {
     console.error('[SECURITY] Blocked malicious seek time:', seconds);
     return false;
   }
-  
+
   return new Promise((resolve) => {
     execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', controlMediaScriptPath, 'seek', String(parsedSeconds)], { timeout: 2000 }, (err) => resolve(!err));
   });
@@ -188,7 +188,7 @@ ipcMain.handle('set-auto-hide-setting', (event, autoHide) => updateAutoHide(auto
 // Application Lifecycle
 app.whenReady().then(() => {
   initHardwareMetrics(mediaCtrlExePath);
-  
+
   initWindowManager({
     startupScript: createStartupShortcutScript,
     indexHtml: path.join(__dirname, 'index.html'),
@@ -197,7 +197,7 @@ app.whenReady().then(() => {
   });
 
   const win = createWindow();
-  
+
   initMediaDaemon(daemonScriptPath, win);
 
   createTray();
@@ -225,9 +225,9 @@ app.on('window-all-closed', () => {
 
 function trimMemory() {
   if (global.gc) {
-    try { global.gc(); } catch (e) {}
+    try { global.gc(); } catch (e) { }
   }
-  execFile(mediaCtrlExePath, ['trim-memory'], { timeout: 1500 }, () => {});
+  execFile(mediaCtrlExePath, ['trim-memory'], { timeout: 1500 }, () => { });
 }
 
 // Giải phóng RAM 6 giây sau khi khởi động
@@ -296,7 +296,6 @@ async function handleLocalSmartQuery(query) {
 }
 
 async function generateGeminiContent(apiKey, prompt) {
-  const genAI = new GoogleGenerativeAI(apiKey);
   const modelsToTry = [
     'gemini-3.8-flash',
     'gemini-2.5-flash',
