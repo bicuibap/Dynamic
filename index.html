@@ -288,20 +288,53 @@
           </div>
         </div>
 
-        <!-- 4. MINI PILL PANEL (Volume / Alerts) -->
-        <div id="mini-pill-panel"
-          style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; padding: 0 16px;">
-          <div id="mini-pill-content"
-            style="display: flex; align-items: center; gap: 10px; width: 100%; justify-content: center;">
-            <span id="mini-pill-icon" style="font-size: 16px;"></span>
-            <span id="mini-pill-text"
-              style="font-size: 13px; font-weight: 600; font-family: var(--font-family); color: #fff;"></span>
-            <!-- Thanh volume mini -->
-            <div id="mini-volume-track"
-              style="display: none; width: 120px; height: 6px; background: rgba(255,255,255,0.15); border-radius: 999px; overflow: hidden;">
-              <div id="mini-volume-fill" style="height: 100%; background: #ffffff; width: 50%; border-radius: 999px;">
+        <!-- 4. MINI PILL & RICH NOTIFICATION PANEL (LUXURY DYNAMIC ISLAND CAPSULE) -->
+        <div id="mini-pill-panel" class="mini-pill-container" style="display: none;">
+          <!-- A. MUSIC TRACK NOTIFICATION (Rich Album Art, Glowing Badge & Live Equalizer) -->
+          <div id="media-alert-view" class="media-alert-card" style="display: none;">
+            <div class="media-alert-thumb-wrap">
+              <img id="media-alert-thumb" class="media-alert-thumb" src="" alt="Cover" style="display: none;" />
+              <div id="media-alert-thumb-fallback" class="media-alert-thumb-disc">
+                <span class="disc-hole"></span>
+                <span class="disc-note">🎵</span>
               </div>
             </div>
+            <div class="media-alert-info">
+              <div class="media-alert-badge">
+                <span class="pulse-dot"></span>
+                <span class="badge-text">NOW PLAYING</span>
+              </div>
+              <div id="media-alert-title" class="media-alert-title">Tên bài hát</div>
+              <div id="media-alert-artist" class="media-alert-artist">Nghệ sĩ / Kênh phát</div>
+            </div>
+            <div class="media-alert-right">
+              <div class="media-live-waves">
+                <span class="wave-bar wb-1"></span>
+                <span class="wave-bar wb-2"></span>
+                <span class="wave-bar wb-3"></span>
+                <span class="wave-bar wb-4"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- B. SYSTEM NOTIFICATION (Settings, Shortcuts, Status) -->
+          <div id="system-alert-view" class="system-alert-card" style="display: none;">
+            <div class="system-alert-badge-icon">
+              <span id="system-alert-icon">📌</span>
+            </div>
+            <div class="system-alert-info">
+              <div id="system-alert-title" class="system-alert-title">Thông báo</div>
+              <div id="system-alert-subtitle" class="system-alert-subtitle">Dynamic Island</div>
+            </div>
+          </div>
+
+          <!-- C. VOLUME NOTIFICATION (Modern Apple-style Sound Bar) -->
+          <div id="volume-alert-view" class="volume-alert-card" style="display: none;">
+            <span id="volume-alert-icon" class="volume-alert-icon">🔊</span>
+            <div class="volume-alert-track">
+              <div id="volume-alert-fill" class="volume-alert-fill" style="width: 50%;"></div>
+            </div>
+            <span id="volume-alert-text" class="volume-alert-text">50%</span>
           </div>
         </div>
 

@@ -57,10 +57,21 @@ class SystemMediaSync {
     this.scrubberCur = document.getElementById('scrubber-cur');
     this.scrubberTot = document.getElementById('scrubber-tot');
     this.miniPillPanel = document.getElementById('mini-pill-panel');
-    this.miniPillIcon = document.getElementById('mini-pill-icon');
-    this.miniPillText = document.getElementById('mini-pill-text');
-    this.miniVolumeTrack = document.getElementById('mini-volume-track');
-    this.miniVolumeFill = document.getElementById('mini-volume-fill');
+    this.mediaAlertView = document.getElementById('media-alert-view');
+    this.mediaAlertThumb = document.getElementById('media-alert-thumb');
+    this.mediaAlertThumbFallback = document.getElementById('media-alert-thumb-fallback');
+    this.mediaAlertTitle = document.getElementById('media-alert-title');
+    this.mediaAlertArtist = document.getElementById('media-alert-artist');
+    
+    this.systemAlertView = document.getElementById('system-alert-view');
+    this.systemAlertIcon = document.getElementById('system-alert-icon');
+    this.systemAlertTitle = document.getElementById('system-alert-title');
+    this.systemAlertSubtitle = document.getElementById('system-alert-subtitle');
+
+    this.volumeAlertView = document.getElementById('volume-alert-view');
+    this.volumeAlertIcon = document.getElementById('volume-alert-icon');
+    this.volumeAlertFill = document.getElementById('volume-alert-fill');
+    this.volumeAlertText = document.getElementById('volume-alert-text');
     
     this.alertTimer = null;
     this.volumeTimer = null;
@@ -459,9 +470,9 @@ class SystemMediaSync {
 
     if (this.islandPill) {
       if (this.isExpanded) {
-        this.islandPill.classList.remove('mode-hardware', 'mode-weather', 'mode-calendar', 'mode-bot', 'mode-mini', 'mode-alert');
+        this.islandPill.classList.remove('mode-hardware', 'mode-weather', 'mode-calendar', 'mode-bot', 'mode-mini', 'mode-alert', 'mode-media-alert', 'mode-system-alert', 'mode-volume');
         this.dashboardPanel.style.display = '';
-        this.miniPillPanel.style.display = 'none';
+        if (this.miniPillPanel) this.miniPillPanel.style.display = 'none';
         
         if (mode === 'hardware') {
           this.islandPill.classList.add('mode-hardware');
@@ -476,11 +487,27 @@ class SystemMediaSync {
             const botInput = document.getElementById('bot-input');
             if (botInput) botInput.focus({ preventScroll: true });
           }, 300);
-        } else if (mode === 'alert' || mode === 'volume') {
-          this.islandPill.classList.add('mode-mini');
+        } else if (mode === 'media-alert') {
+          this.islandPill.classList.add('mode-mini', 'mode-media-alert');
           this.dashboardPanel.style.display = 'none';
-          this.miniPillPanel.style.display = 'flex';
-          if (mode === 'alert') this.islandPill.classList.add('mode-alert');
+          if (this.miniPillPanel) this.miniPillPanel.style.display = 'flex';
+          if (this.mediaAlertView) this.mediaAlertView.style.display = 'flex';
+          if (this.systemAlertView) this.systemAlertView.style.display = 'none';
+          if (this.volumeAlertView) this.volumeAlertView.style.display = 'none';
+        } else if (mode === 'system-alert' || mode === 'alert') {
+          this.islandPill.classList.add('mode-mini', 'mode-system-alert');
+          this.dashboardPanel.style.display = 'none';
+          if (this.miniPillPanel) this.miniPillPanel.style.display = 'flex';
+          if (this.mediaAlertView) this.mediaAlertView.style.display = 'none';
+          if (this.systemAlertView) this.systemAlertView.style.display = 'flex';
+          if (this.volumeAlertView) this.volumeAlertView.style.display = 'none';
+        } else if (mode === 'volume') {
+          this.islandPill.classList.add('mode-mini', 'mode-volume');
+          this.dashboardPanel.style.display = 'none';
+          if (this.miniPillPanel) this.miniPillPanel.style.display = 'flex';
+          if (this.mediaAlertView) this.mediaAlertView.style.display = 'none';
+          if (this.systemAlertView) this.systemAlertView.style.display = 'none';
+          if (this.volumeAlertView) this.volumeAlertView.style.display = 'flex';
         }
         
         this.showIslandTemporarily(0);
@@ -489,54 +516,110 @@ class SystemMediaSync {
         this.checkMouseHit(this.lastMouseX, this.lastMouseY);
       } else {
         this.showIslandTemporarily(8000);
-        this.islandPill.classList.remove('island-expanded', 'mode-hardware', 'mode-weather', 'mode-calendar', 'mode-bot', 'mode-mini', 'mode-alert');
+        this.islandPill.classList.remove('island-expanded', 'mode-hardware', 'mode-weather', 'mode-calendar', 'mode-bot', 'mode-mini', 'mode-alert', 'mode-media-alert', 'mode-system-alert', 'mode-volume');
         this.islandPill.classList.add('island-collapsed');
         this.checkMouseHit(this.lastMouseX, this.lastMouseY);
         
         setTimeout(() => {
           this.dashboardPanel.style.removeProperty('opacity');
           if (this.miniPillPanel) this.miniPillPanel.style.removeProperty('opacity');
+          if (this.mediaAlertView) this.mediaAlertView.style.display = 'none';
+          if (this.systemAlertView) this.systemAlertView.style.display = 'none';
+          if (this.volumeAlertView) this.volumeAlertView.style.display = 'none';
         }, 100);
       }
     }
   }
 
-  showAlert(text, icon) {
-    const wasHidden = this.islandPill.classList.contains('island-hidden');
+  showMediaAlert(media) {
+    if (!media || !media.title) return;
+
+    // 1. Cập nhật ảnh bìa hoặc fallback đĩa than
+    if (this.mediaAlertThumb && this.mediaAlertThumbFallback) {
+      if (media.thumbnail && typeof media.thumbnail === 'string' && media.thumbnail.trim().length > 10) {
+        this.mediaAlertThumb.src = media.thumbnail;
+        this.mediaAlertThumb.style.display = 'block';
+        this.mediaAlertThumbFallback.style.display = 'none';
+      } else {
+        this.mediaAlertThumb.style.display = 'none';
+        this.mediaAlertThumbFallback.style.display = 'flex';
+      }
+    }
+
+    // 2. Cập nhật tiêu đề bài hát và nghệ sĩ
+    if (this.mediaAlertTitle) {
+      this.mediaAlertTitle.textContent = media.title;
+      this.mediaAlertTitle.title = media.title;
+    }
+    if (this.mediaAlertArtist) {
+      const artist = media.artist && media.artist.trim() !== '' ? media.artist : 'Đang phát trực tiếp';
+      this.mediaAlertArtist.textContent = artist;
+      this.mediaAlertArtist.title = artist;
+    }
+
+    // 3. Mở rộng đảo ở chế độ Capsule Media Alert
+    this.toggleExpand(true, 'media-alert');
+
+    // 4. Đặt thời gian đóng sau 3.6 giây
+    if (this.alertTimer) clearTimeout(this.alertTimer);
+    this.alertTimer = setTimeout(() => {
+      if (this.isExpanded && this.islandPill && this.islandPill.classList.contains('mode-media-alert')) {
+        this.toggleExpand(false);
+        // Sau khi alert đóng, giữ đảo ở compact notch 8s nếu bật auto-hide
+        if (this.autoHide) {
+          this.showIslandTemporarily(8000);
+        }
+      }
+    }, 3600);
+  }
+
+  showAlert(text, icon = '📌', subtitle = 'Dynamic Island') {
+    if (this.systemAlertIcon) this.systemAlertIcon.textContent = icon;
+    if (this.systemAlertTitle) {
+      this.systemAlertTitle.textContent = text;
+      this.systemAlertTitle.title = text;
+    }
+    if (this.systemAlertSubtitle) {
+      this.systemAlertSubtitle.textContent = subtitle;
+    }
     
-    if (this.miniPillIcon) this.miniPillIcon.textContent = icon;
-    if (this.miniPillText) this.miniPillText.textContent = text;
-    if (this.miniVolumeTrack) this.miniVolumeTrack.style.display = 'none';
-    if (this.miniPillText) this.miniPillText.style.display = 'block';
-    
-    this.toggleExpand(true, 'alert');
+    this.toggleExpand(true, 'system-alert');
     
     if (this.alertTimer) clearTimeout(this.alertTimer);
     this.alertTimer = setTimeout(() => {
-      if (this.isExpanded && this.islandPill.classList.contains('mode-alert')) {
+      if (this.isExpanded && this.islandPill && (this.islandPill.classList.contains('mode-system-alert') || this.islandPill.classList.contains('mode-alert'))) {
         this.toggleExpand(false);
         // Sau khi alert đóng lại, cho phép đảo hiển thị ở dạng Compact Notch 8 giây rồi mới trượt ẩn
         if (this.autoHide) {
           this.showIslandTemporarily(8000);
         }
       }
-    }, 3000);
+    }, 3200);
   }
 
   showVolumeMini(volumePct) {
-    if (this.miniPillIcon) this.miniPillIcon.textContent = '🔊';
-    if (this.miniPillText) this.miniPillText.style.display = 'none';
-    if (this.miniVolumeTrack) this.miniVolumeTrack.style.display = 'block';
-    if (this.miniVolumeFill) this.miniVolumeFill.style.width = `${volumePct}%`;
+    const pct = Math.max(0, Math.min(100, Math.round(volumePct)));
+    if (this.volumeAlertFill) {
+      this.volumeAlertFill.style.width = `${pct}%`;
+    }
+    if (this.volumeAlertText) {
+      this.volumeAlertText.textContent = `${pct}%`;
+    }
+    if (this.volumeAlertIcon) {
+      this.volumeAlertIcon.textContent = pct === 0 ? '🔇' : (pct < 50 ? '🔉' : '🔊');
+    }
     
     this.toggleExpand(true, 'volume');
     
     if (this.volumeTimer) clearTimeout(this.volumeTimer);
     this.volumeTimer = setTimeout(() => {
-      if (this.isExpanded && this.islandPill.classList.contains('mode-mini') && !this.islandPill.classList.contains('mode-alert')) {
+      if (this.isExpanded && this.islandPill && this.islandPill.classList.contains('mode-volume')) {
         this.toggleExpand(false);
+        if (this.autoHide) {
+          this.showIslandTemporarily(8000);
+        }
       }
-    }, 2000);
+    }, 2200);
   }
 
   async togglePlayPause() {
@@ -614,9 +697,9 @@ class SystemMediaSync {
           // Cập nhật giao diện nhạc và tự động trượt đảo xuống khi mở bài hoặc đổi bài
           this.updateMediaUI(media, false);
           
-          // Khi mở bài mới hoặc chuyển bài -> Hiển thị Alert tên bài hát
-          if (titleChanged && !this.isExpanded) {
-            this.showAlert(media.title, '🎵');
+          // Khi mở bài mới hoặc chuyển bài -> Hiển thị Capsule Alert sang trọng (Ảnh bìa + Tên bài + Sóng nhạc)
+          if (titleChanged && (!this.isExpanded || (this.islandPill && this.islandPill.classList.contains('mode-media-alert')))) {
+            this.showMediaAlert(media);
           }
         } else {
           this.hasActiveMedia = false;
@@ -734,6 +817,11 @@ class SystemMediaSync {
       }
       if (this.notchDiscNote) {
         this.notchDiscNote.style.display = 'none';
+      }
+      if (this.mediaAlertThumb && this.islandPill && this.islandPill.classList.contains('mode-media-alert')) {
+        this.mediaAlertThumb.src = media.thumbnail;
+        this.mediaAlertThumb.style.display = 'block';
+        if (this.mediaAlertThumbFallback) this.mediaAlertThumbFallback.style.display = 'none';
       }
     } else {
       if (this.albumCoverImg) {

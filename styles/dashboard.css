@@ -17,7 +17,7 @@
               padding 0.1s ease;
 }
 
-#island-pill.island-expanded:not(.mode-hardware):not(.mode-weather):not(.mode-calendar):not(.mode-bot) #dashboard-panel {
+#island-pill.island-expanded:not(.mode-hardware):not(.mode-weather):not(.mode-calendar):not(.mode-bot):not(.mode-mini):not(.mode-media-alert):not(.mode-system-alert):not(.mode-volume) #dashboard-panel {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0) scale(1);
@@ -28,7 +28,11 @@
 #island-pill.island-expanded.mode-hardware #dashboard-panel,
 #island-pill.island-expanded.mode-weather #dashboard-panel,
 #island-pill.island-expanded.mode-calendar #dashboard-panel,
-#island-pill.island-expanded.mode-bot #dashboard-panel {
+#island-pill.island-expanded.mode-bot #dashboard-panel,
+#island-pill.island-expanded.mode-mini #dashboard-panel,
+#island-pill.island-expanded.mode-media-alert #dashboard-panel,
+#island-pill.island-expanded.mode-system-alert #dashboard-panel,
+#island-pill.island-expanded.mode-volume #dashboard-panel {
   opacity: 0;
   pointer-events: none;
   height: 0;
@@ -715,4 +719,288 @@
   pointer-events: auto;
   transform: translateY(0) scale(1);
   transition: opacity 0.4s ease 0.1s, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s;
+}
+
+/* ==========================================================================
+   DYNAMIC ISLAND CAPSULE NOTIFICATIONS (LUXURY APPLE-STYLE)
+   ========================================================================== */
+
+/* Ẩn Header bar mặc định khi đang ở chế độ Capsule Notification để giao diện gọn gàng */
+#island-pill.mode-mini .island-header-bar,
+#island-pill.mode-media-alert .island-header-bar,
+#island-pill.mode-system-alert .island-header-bar,
+#island-pill.mode-volume .island-header-bar {
+  display: none !important;
+}
+
+#island-pill.island-expanded.mode-media-alert {
+  width: 440px !important;
+  height: 68px !important;
+  border-bottom-left-radius: 30px !important;
+  border-bottom-right-radius: 30px !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(56, 189, 248, 0.18) !important;
+}
+
+#island-pill.island-expanded.mode-system-alert {
+  width: 360px !important;
+  height: 52px !important;
+  border-bottom-left-radius: 26px !important;
+  border-bottom-right-radius: 26px !important;
+  padding: 0 !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 20px rgba(255, 255, 255, 0.1) !important;
+}
+
+#island-pill.island-expanded.mode-volume {
+  width: 330px !important;
+  height: 48px !important;
+  border-bottom-left-radius: 24px !important;
+  border-bottom-right-radius: 24px !important;
+  padding: 0 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 18px rgba(56, 189, 248, 0.15) !important;
+}
+
+.mini-pill-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- 1. MEDIA TRACK ALERT CARD --- */
+.media-alert-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 0 16px;
+  animation: alertSpringIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.media-alert-thumb-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #0f1117;
+}
+
+.media-alert-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.media-alert-thumb-disc {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #252a38 30%, #0d0f15 80%);
+  animation: disc-spin 6s linear infinite;
+  position: relative;
+}
+
+.disc-hole {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #000;
+  border: 2px solid #38bdf8;
+}
+
+.disc-note {
+  position: absolute;
+  font-size: 14px;
+  filter: drop-shadow(0 0 4px #38bdf8);
+}
+
+.media-alert-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.media-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: dotPulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes dotPulse {
+  0% { transform: scale(0.8); opacity: 0.6; }
+  100% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 12px #38bdf8; }
+}
+
+.media-alert-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+}
+
+.media-alert-artist {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-alert-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.media-live-waves {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+  padding: 0 4px;
+}
+
+.wave-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to top, #0284c7, #38bdf8);
+  animation: liveWaveDance 1.1s ease-in-out infinite alternate;
+}
+
+.wb-1 { height: 40%; animation-delay: 0.1s; }
+.wb-2 { height: 95%; animation-delay: 0.3s; }
+.wb-3 { height: 65%; animation-delay: 0.5s; }
+.wb-4 { height: 85%; animation-delay: 0.2s; }
+
+@keyframes liveWaveDance {
+  0% { transform: scaleY(0.3); opacity: 0.6; }
+  50% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(0.4); opacity: 0.7; }
+}
+
+/* --- 2. SYSTEM ALERT CARD --- */
+.system-alert-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  animation: alertSpringIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.system-alert-badge-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.system-alert-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+
+.system-alert-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.system-alert-subtitle {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* --- 3. VOLUME ALERT CARD --- */
+.volume-alert-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  animation: alertSpringIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.volume-alert-icon {
+  font-size: 17px;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.volume-alert-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.volume-alert-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #ffffff);
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+  transition: width 0.1s ease;
+}
+
+.volume-alert-text {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #ffffff;
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes alertSpringIn {
+  0% { opacity: 0; transform: translateY(-6px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
