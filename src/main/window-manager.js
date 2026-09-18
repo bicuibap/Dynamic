@@ -165,21 +165,45 @@ function setAutoLaunch(enabled) {
 }
 
 let wakeCheckInterval = null;
+let topEdgeDwellStart = 0;
+let hasFiredWake = false;
 
 function setupWakeCheck() {
   if (wakeCheckInterval) clearInterval(wakeCheckInterval);
+  topEdgeDwellStart = 0;
+  hasFiredWake = false;
+
   wakeCheckInterval = setInterval(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    if (!currentSettings.autoHide) return;
+    if (!currentSettings.autoHide) {
+      topEdgeDwellStart = 0;
+      hasFiredWake = false;
+      return;
+    }
     try {
       const cursor = screen.getCursorScreenPoint();
       const bounds = mainWindow.getBounds();
-      // Nếu chuột rê lên mép trên cùng (y <= 12px) trong phạm vi ngang của đảo
-      if (cursor.y <= 12 && cursor.x >= bounds.x && cursor.x <= bounds.x + bounds.width) {
-        mainWindow.webContents.send('wake-island');
+
+      // Chỉ kích hoạt khi chuột di SÁT RẠT lên mép trên cùng (y <= 2px)
+      // và nằm trong phạm vi chiều ngang của đảo (thu gọn 80px mỗi bên để tránh nhầm khi click tab ngoài rìa)
+      const isAtTopEdge = cursor.y <= 2 &&
+                          cursor.x >= (bounds.x + 80) &&
+                          cursor.x <= (bounds.x + bounds.width - 80);
+
+      if (isAtTopEdge) {
+        if (!topEdgeDwellStart) {
+          topEdgeDwellStart = Date.now();
+        } else if (!hasFiredWake && (Date.now() - topEdgeDwellStart >= 180)) {
+          // Chuột phải dừng lại ở sát mép trên ít nhất 180ms (tránh trường hợp chỉ vung chuột qua bấm tab)
+          mainWindow.webContents.send('wake-island');
+          hasFiredWake = true;
+        }
+      } else {
+        topEdgeDwellStart = 0;
+        hasFiredWake = false;
       }
     } catch (e) {}
-  }, 250);
+  }, 80);
 }
 
 function updateTrayMenu() {

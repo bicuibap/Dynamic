@@ -157,12 +157,12 @@ class SystemMediaSync {
 
     // Nếu đảo đang ở trạng thái ẩn (trượt lên trên mép màn hình)
     if (isHidden) {
-      // VÙNG ĐÁNH THỨC: Khi đảo đang ẩn, nếu chuột di chuyển vào khu vực mép trên màn hình
+      // VÙNG ĐÁNH THỨC: Khi đảo đang ẩn, CHỈ khi chuột di SÁT LÊN ĐỈNH MÀN HÌNH (y <= 2px)
       const winWidth = window.innerWidth || 580;
-      const wakeLeft = (winWidth - 480) / 2;
-      const wakeRight = wakeLeft + 480;
+      const wakeLeft = (winWidth - 420) / 2;
+      const wakeRight = wakeLeft + 420;
 
-      if (clientY <= 30 && clientX >= wakeLeft && clientX <= wakeRight) {
+      if (clientY <= 2 && clientX >= wakeLeft && clientX <= wakeRight) {
         this.showIslandTemporarily(8000);
         this.setMouseIgnored(false);
         return;
@@ -384,12 +384,6 @@ class SystemMediaSync {
       });
     }
 
-    // Hover trigger: chỉ đánh thức đảo khi di chuột vào mép trên, không bao giờ chặn click
-    if (this.hoverTrigger) {
-      this.hoverTrigger.addEventListener('mouseenter', () => {
-        this.showIslandTemporarily(10000);
-      });
-    }
 
     // Scrubber Interaction (Tua video / nhạc trực tiếp)
     if (this.scrubberTrack) {
@@ -619,11 +613,18 @@ class SystemMediaSync {
           this.hasActiveMedia = true;
           
           const titleChanged = (oldTitle && oldTitle !== media.title);
+
+          const isCurrentlyHidden = !this.islandPill ||
+              this.islandPill.classList.contains('island-hidden') ||
+              (this.islandWrapper && this.islandWrapper.classList.contains('island-hidden'));
+
+          // Khi đang ở chế độ tự ẩn (autoHide) và đảo đang ẩn:
+          // TUYỆT ĐỐI không tự ý hiện Alert hay bung đảo ra khi người dùng ấn qua tab khác
+          const shouldShowAlert = titleChanged && !this.isExpanded && (!this.autoHide || !isCurrentlyHidden);
           
-          this.updateMediaUI(media, titleChanged && !this.isExpanded);
+          this.updateMediaUI(media, isCurrentlyHidden || !shouldShowAlert);
           
-          // Show Alert on song change if not expanded
-          if (titleChanged && !this.isExpanded) {
+          if (shouldShowAlert) {
             this.showAlert(media.title, '🎵');
           }
         } else {
@@ -690,7 +691,11 @@ class SystemMediaSync {
   }
 
   updateMediaUI(media, skipAutoShow = false) {
-    if (this.lastTitle !== media.title && !skipAutoShow) {
+    const isCurrentlyHidden = !this.islandPill ||
+        this.islandPill.classList.contains('island-hidden') ||
+        (this.islandWrapper && this.islandWrapper.classList.contains('island-hidden'));
+
+    if (this.lastTitle !== media.title && !skipAutoShow && (!this.autoHide || !isCurrentlyHidden)) {
       this.showIslandTemporarily(this.autoHide ? 8000 : 0);
     }
     this.lastTitle = media.title;
