@@ -2,6 +2,19 @@ const { app, ipcMain, shell, clipboard, BrowserWindow } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
+// Tìm và nạp .env từ nhiều vị trí (thư mục app, thư mục thực thi, AppData)
+const envLocations = [
+  path.join(__dirname, '.env'),
+  path.join(process.cwd(), '.env'),
+  path.join(process.resourcesPath || '', '.env'),
+  path.join(process.resourcesPath || '', 'app.asar.unpacked', '.env')
+];
+for (const envLoc of envLocations) {
+  if (fs.existsSync(envLoc)) {
+    require('dotenv').config({ path: envLoc });
+    break;
+  }
+}
 require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
@@ -23,6 +36,7 @@ const {
   ensureStartupShortcut,
   getWindow,
   getSettings,
+  saveSettings,
   updateAutoHide
 } = require('./src/main/window-manager');
 const {
@@ -214,27 +228,80 @@ setTimeout(trimMemory, 6000);
 setInterval(trimMemory, 3 * 60 * 1000);
 
 // ==========================================
-// THÊM XỬ LÝ GEMINI AI
+// THÊM XỬ LÝ GEMINI AI (Hỗ trợ đa tầng Model & Tự động nhận diện trên mọi máy)
 // ==========================================
+function getGeminiApiKey() {
+  // 1. Kiểm tra cài đặt người dùng đã lưu trong AppData
+  const settings = getSettings();
+  if (settings && settings.geminiApiKey && typeof settings.geminiApiKey === 'string' && settings.geminiApiKey.trim()) {
+    return settings.geminiApiKey.trim();
+  }
+  // 2. Kiểm tra biến môi trường (.env hoặc hệ thống)
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() && process.env.GEMINI_API_KEY !== 'your_api_key_here') {
+    return process.env.GEMINI_API_KEY.trim();
+  }
+  // 3. Nếu chưa cấu hình, trả về null để hướng dẫn người dùng nhập /key
+  return null;
+}
+
+async function generateGeminiContent(apiKey, prompt) {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  
+  // Tự động phân loại danh sách model phù hợp nhất với loại API Key
+  let modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-3.6-flash'];
+  if (apiKey.startsWith('AQ.')) {
+    modelsToTry = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  }
+
+  let lastError = null;
+  for (const modelName of modelsToTry) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (err) {
+      lastError = err;
+      // Nếu là lỗi 404 (Model không tồn tại đối với tài khoản/key này), tự động chuyển sang model tiếp theo
+      if (err.message && (err.message.includes('404') || err.message.includes('not found'))) {
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
+
 ipcMain.handle('ask-gemini', async (event, query) => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'your_api_key_here') {
-    return "Tôi chưa được kết nối với API Key của Gemini. Vui lòng thêm `GEMINI_API_KEY` vào file `.env` tại thư mục gốc của dự án.";
+  const trimmed = (query || '').trim();
+
+  // Hỗ trợ lệnh đổi/lưu API Key trực tiếp trong khung chat: /key <your_api_key>
+  if (trimmed.startsWith('/key ') || trimmed.startsWith('/setkey ')) {
+    const newKey = trimmed.replace(/^\/(key|setkey)\s+/, '').trim();
+    if (newKey) {
+      const settings = getSettings();
+      settings.geminiApiKey = newKey;
+      saveSettings(settings);
+      return `✅ Đã lưu Gemini API Key mới thành công! Bạn có thể bắt đầu đặt câu hỏi ngay.`;
+    }
+  }
+
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    return "Tôi chưa có Gemini API Key trên máy này. Bạn hãy nhập: `/key <API_KEY>` ngay tại đây để lưu khóa (Lấy key miễn phí tại https://aistudio.google.com).";
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
-
     const prompt = `Bạn là một trợ lý ảo siêu thông minh tên là "Dynamic Island Bot", hoạt động trên màn hình desktop của Windows.
-Hãy trả lời ngắn gọn, thân thiện và xúc tích, tối đa 2-3 câu, vì bạn đang hiển thị trên một thanh thông báo nhỏ (như Siri).
-Câu hỏi của người dùng: ${query}`;
+Hãy trả lời ngắn gọn, thân thiện và súc tích, tối đa 2-3 câu, vì bạn đang hiển thị trên một thanh thông báo nhỏ (như Siri).
+Câu hỏi của người dùng: ${trimmed}`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
+    return await generateGeminiContent(apiKey, prompt);
   } catch (error) {
     console.error('Gemini API Error:', error);
-    return "Xin lỗi, đã có lỗi xảy ra khi kết nối tới máy chủ AI. Vui lòng kiểm tra kết nối mạng hoặc API Key.";
+    if (error.message && (error.message.includes('API_KEY_INVALID') || error.message.includes('API key not valid'))) {
+      return "Lỗi: API Key Gemini không hợp lệ hoặc đã hết hạn. Vui lòng nhập `/key <API_KEY_MỚI>` để cập nhật.";
+    }
+    return "Xin lỗi, đã có lỗi kết nối tới máy chủ Gemini. Vui lòng kiểm tra mạng hoặc nhập `/key <API_KEY_MỚI>` để đổi khóa.";
   }
 });

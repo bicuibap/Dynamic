@@ -334,5 +334,6 @@ module.exports = {
   ensureStartupShortcut,
   getWindow,
   getSettings,
+  saveSettings,
   updateAutoHide
 };
