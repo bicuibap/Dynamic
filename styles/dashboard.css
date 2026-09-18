@@ -181,8 +181,8 @@
    -------------------------------------------------------------------------- */
 .cover-art-container {
   position: relative;
-  width: 124px;
-  height: 124px;
+  width: 110px;
+  height: 110px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -190,8 +190,8 @@
 }
 
 .vinyl-record {
-  width: 120px;
-  height: 120px;
+  width: 106px;
+  height: 106px;
   border-radius: 50%;
   background: radial-gradient(circle, #181c26 0%, #030712 100%);
   position: relative;
@@ -211,8 +211,8 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 110px;
-  height: 110px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   filter: blur(30px) opacity(0.85);
   z-index: 1;
@@ -234,8 +234,8 @@
 }
 
 .vinyl-center {
-  width: 74px;
-  height: 74px;
+  width: 66px;
+  height: 66px;
   border-radius: 50%;
   overflow: hidden;
   position: relative;
@@ -697,14 +697,14 @@
 .bot-send-btn:active { transform: scale(0.92); }
 
 /* --- Island Pill Expansion Dimensions --- */
-#island-pill.island-expanded.mode-weather { width: 500px; height: 320px; }
-#island-pill.island-expanded.mode-calendar { width: 500px; height: 260px; }
-#island-pill.island-expanded.mode-bot { width: 500px; height: 280px; }
+#island-pill.island-expanded.mode-weather { width: 450px; height: 285px; }
+#island-pill.island-expanded.mode-calendar { width: 450px; height: 235px; }
+#island-pill.island-expanded.mode-bot { width: 450px; height: 245px; }
 
 /* --- Reveal logic for new panels --- */
 #weather-panel, #calendar-panel, #bot-panel {
   position: absolute;
-  top: 28px;
+  top: 26px;
   left: 0;
   opacity: 0;
   pointer-events: none;
@@ -734,28 +734,28 @@
 }
 
 #island-pill.island-expanded.mode-media-alert {
-  width: 440px !important;
-  height: 68px !important;
-  border-bottom-left-radius: 30px !important;
-  border-bottom-right-radius: 30px !important;
+  width: 390px !important;
+  height: 60px !important;
+  border-bottom-left-radius: 26px !important;
+  border-bottom-right-radius: 26px !important;
   padding: 0 !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(56, 189, 248, 0.18) !important;
 }
 
 #island-pill.island-expanded.mode-system-alert {
-  width: 360px !important;
-  height: 52px !important;
-  border-bottom-left-radius: 26px !important;
-  border-bottom-right-radius: 26px !important;
+  width: 320px !important;
+  height: 46px !important;
+  border-bottom-left-radius: 22px !important;
+  border-bottom-right-radius: 22px !important;
   padding: 0 !important;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 20px rgba(255, 255, 255, 0.1) !important;
 }
 
 #island-pill.island-expanded.mode-volume {
-  width: 330px !important;
-  height: 48px !important;
-  border-bottom-left-radius: 24px !important;
-  border-bottom-right-radius: 24px !important;
+  width: 290px !important;
+  height: 42px !important;
+  border-bottom-left-radius: 20px !important;
+  border-bottom-right-radius: 20px !important;
   padding: 0 !important;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 18px rgba(56, 189, 248, 0.15) !important;
 }
@@ -774,15 +774,15 @@
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 0 16px;
+  gap: 12px;
+  padding: 0 14px;
   animation: alertSpringIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .media-alert-thumb-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   overflow: hidden;
   position: relative;
   flex-shrink: 0;

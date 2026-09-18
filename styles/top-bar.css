@@ -84,17 +84,17 @@ body {
 
 /* Collapsed State: Has active media -> Expands to full notch bar */
 #island-pill.island-collapsed {
-  width: 480px;
-  height: 28px;
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
+  width: 420px;
+  height: 26px;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
   box-shadow: none !important;
 }
 
 /* Collapsed State: Khi YouTube / Nhạc tắt -> Thu nhỏ gọn gàng, tinh tế */
 #island-pill.island-collapsed.no-media {
-  width: 370px;
-  height: 28px;
+  width: 310px;
+  height: 26px;
 }
 
 /* Hidden State: Ẩn hoàn toàn lên mép trên, giữ nguyên opacity: 1 để không bị xuyên thấu */
@@ -115,10 +115,10 @@ body {
 
 /* Expanded State: Luxury Bento Player */
 #island-pill.island-expanded {
-  width: 550px;
-  height: 215px;
-  border-bottom-left-radius: 24px;
-  border-bottom-right-radius: 24px;
+  width: 490px;
+  height: 195px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
   box-shadow: none !important;
 }
 
@@ -132,12 +132,12 @@ body {
    ========================================================================== */
 .island-header-bar {
   width: 100%;
-  height: 28px;
-  padding: 0 12px;
+  height: 26px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
   cursor: default;
   background: transparent;
