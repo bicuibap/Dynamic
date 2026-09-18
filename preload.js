@@ -26,6 +26,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Window interactions
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.invoke('set-ignore-mouse-events', ignore, options),
+  focusWindow: () => ipcRenderer.invoke('focus-window'),
+  onWindowBlur: (callback) => {
+    ipcRenderer.on('window-blur', () => callback());
+  },
   onAutoHideChanged: (callback) => {
     ipcRenderer.on('auto-hide-changed', (event, autoHide) => callback(autoHide));
   },

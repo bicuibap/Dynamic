@@ -133,12 +133,29 @@ class SystemMediaSync {
       }
     });
 
-    // Khi cửa sổ mất tiêu điểm (chuyển sang ứng dụng khác)
+    // Khi cửa sổ mất tiêu điểm (người dùng click ra ngoài vào ứng dụng khác hoặc desktop)
     window.addEventListener('blur', () => {
-      if (!this.isScrubbing && !this.isDraggingVolume) {
-        this.setMouseIgnored(true);
-      }
+      this.handleOutsideClick();
     });
+
+    if (window.electronAPI && window.electronAPI.onWindowBlur) {
+      window.electronAPI.onWindowBlur(() => {
+        this.handleOutsideClick();
+      });
+    }
+  }
+
+  handleOutsideClick() {
+    // Nếu đang trong quá trình kéo tua bài hát hoặc kéo thanh âm lượng -> không thu lại
+    if (this.isScrubbing || this.isDraggingVolume) {
+      return;
+    }
+    this.setMouseIgnored(true);
+
+    // Nếu đảo đang ở trạng thái mở rộng (Expanded UI), tự động thu gọn lại thanh Compact Notch
+    if (this.isExpanded) {
+      this.toggleExpand(false);
+    }
   }
 
   setMouseIgnored(ignore) {
@@ -470,6 +487,12 @@ class SystemMediaSync {
 
     if (this.islandPill) {
       if (this.isExpanded) {
+        // Yêu cầu cửa sổ nhận tiêu điểm (focus) để khi click ra ngoài vào ứng dụng khác sẽ lập tức kích hoạt sự kiện blur
+        if (mode !== 'media-alert' && mode !== 'system-alert' && mode !== 'volume') {
+          if (window.electronAPI && window.electronAPI.focusWindow) {
+            window.electronAPI.focusWindow();
+          }
+        }
         this.islandPill.classList.remove('mode-hardware', 'mode-weather', 'mode-calendar', 'mode-bot', 'mode-mini', 'mode-alert', 'mode-media-alert', 'mode-system-alert', 'mode-volume');
         this.dashboardPanel.style.display = '';
         if (this.miniPillPanel) this.miniPillPanel.style.display = 'none';

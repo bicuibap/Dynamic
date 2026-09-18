@@ -83,6 +83,15 @@ ipcMain.handle('set-ignore-mouse-events', (event, ignore, options) => {
   return true;
 });
 
+// IPC: Focus Window
+ipcMain.handle('focus-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed()) {
+    win.focus();
+  }
+  return true;
+});
+
 // IPC: Media Control
 ipcMain.handle('media-control', async (event, action) => {
   // BẢO MẬT: Whitelist các lệnh hợp lệ để chống Command Injection

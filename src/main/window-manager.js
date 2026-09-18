@@ -111,6 +111,7 @@ function createWindow() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
       mainWindow.setIgnoreMouseEvents(true, { forward: true });
+      mainWindow.webContents.send('window-blur');
     }
   });
 
