@@ -16,7 +16,7 @@ for (const envLoc of envLocations) {
   }
 }
 require('dotenv').config();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
 // Tối ưu hóa hiệu năng & bộ nhớ Chromium và V8 Engine
 app.commandLine.appendSwitch('js-flags', '--expose-gc --max-old-space-size=96 --optimize-for-size');
@@ -346,10 +346,6 @@ ipcMain.handle('ask-gemini', async (event, query) => {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
     return "Tôi cần Google Gemini API Key để trả lời câu hỏi này. Bạn hãy lấy key miễn phí tại https://aistudio.google.com rồi gõ: `/key <API_KEY>` ngay tại đây nhé!";
-  }
-
-  if (!apiKey.startsWith('AIzaSy')) {
-    return `Khóa hiện tại (${apiKey.substring(0, 6)}...) không phải là Gemini API Key chuẩn của Google (Key chuẩn luôn bắt đầu bằng "AIzaSy" gồm 39 ký tự). Bạn hãy lấy key miễn phí tại https://aistudio.google.com rồi gõ: /key <AIzaSy_CỦA_BẠN> nhé!`;
   }
 
   try {
