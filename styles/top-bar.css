@@ -53,25 +53,32 @@ body {
 
 /* --- VÀNH GÓC (FLARES) KẾT NỐI MÀN HÌNH --- */
 .notch-flare {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 12px;
   position: relative;
   top: 0;
   pointer-events: none;
   z-index: 10;
-  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.4s ease;
 }
 
 .notch-flare.flare-left {
-  background: radial-gradient(circle at 0 100%, transparent 16px, #000 16px);
+  background: radial-gradient(circle at 0 100%, transparent 12px, #000 12.5px);
+  margin-right: -1px;
 }
 
 .notch-flare.flare-right {
-  background: radial-gradient(circle at 100% 100%, transparent 16px, #000 16px);
+  background: radial-gradient(circle at 100% 100%, transparent 12px, #000 12.5px);
+  margin-left: -1px;
 }
 
 /* Đồng bộ chuyển động của vãnh với Đảo khi ẩn */
-#island-wrapper:has(#island-pill.island-hidden) .notch-flare {
+/* Đồng bộ chuyển động của vãnh với Đảo khi ẩn */
+#island-wrapper {
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+#island-wrapper.island-hidden {
   transform: translateY(-40px) translateZ(0);
 }
 
@@ -92,7 +99,6 @@ body {
 
 /* Hidden State: Ẩn hoàn toàn lên mép trên, giữ nguyên opacity: 1 để không bị xuyên thấu */
 #island-pill.island-hidden {
-  transform: translateY(-40px) translateZ(0);
   opacity: 1;
   pointer-events: none;
 }

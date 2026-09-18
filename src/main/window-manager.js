@@ -11,6 +11,36 @@ const WINDOW_WIDTH = 580;
 const WINDOW_HEIGHT = 380;
 const startupFolder = path.join(os.homedir(), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
 const startupShortcutPath = path.join(startupFolder, 'DynamicIsland.lnk');
+const settingsPath = path.join(os.homedir(), 'AppData', 'Roaming', 'DynamicIsland_settings.json');
+
+function loadSettings() {
+  try {
+    if (fs.existsSync(settingsPath)) {
+      return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    }
+  } catch (e) {}
+  return { autoHide: false }; // Mặc định: KHÔNG tự ẩn (Luôn hiển thị trên màn hình)
+}
+
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  } catch (e) {}
+}
+
+let currentSettings = loadSettings();
+
+function getSettings() {
+  return currentSettings;
+}
+
+function updateAutoHide(autoHide) {
+  currentSettings.autoHide = autoHide;
+  saveSettings(currentSettings);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('auto-hide-changed', currentSettings.autoHide);
+  }
+}
 
 let startupScriptPath = '';
 let indexHtmlPath = '';
@@ -50,7 +80,9 @@ function createWindow() {
       preload: preloadJsPath,
       nodeIntegration: false,
       contextIsolation: true,
-      backgroundThrottling: false
+      backgroundThrottling: false,
+      spellcheck: false,
+      devTools: false
     }
   });
 
@@ -62,6 +94,9 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+    // Đồng bộ cài đặt autoHide cho renderer
+    mainWindow.webContents.send('auto-hide-changed', currentSettings.autoHide);
   });
 
   mainWindow.on('minimize', (e) => {
@@ -73,6 +108,7 @@ function createWindow() {
   mainWindow.on('blur', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+      mainWindow.setIgnoreMouseEvents(true, { forward: true });
     }
   });
 
@@ -138,6 +174,14 @@ function createTray() {
       {
         label: 'Di chuyển sang màn hình tiếp theo',
         click: moveToNextScreen
+      },
+      {
+        label: 'Luôn hiển thị (Không tự ẩn sau 8s)',
+        type: 'checkbox',
+        checked: !currentSettings.autoHide,
+        click: (menuItem) => {
+          updateAutoHide(!menuItem.checked);
+        }
       },
       {
         label: 'Khởi động cùng Windows',
@@ -227,5 +271,7 @@ module.exports = {
   registerGlobalShortcuts,
   unregisterShortcuts,
   ensureStartupShortcut,
-  getWindow
+  getWindow,
+  getSettings,
+  updateAutoHide
 };

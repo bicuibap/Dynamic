@@ -1,4 +1,15 @@
+const MAX_ARTWORK_CACHE = 30;
 const artworkCache = new Map();
+
+function cacheArtwork(title, url) {
+  if (artworkCache.has(title)) {
+    artworkCache.delete(title);
+  } else if (artworkCache.size >= MAX_ARTWORK_CACHE) {
+    const oldestKey = artworkCache.keys().next().value;
+    artworkCache.delete(oldestKey);
+  }
+  artworkCache.set(title, url);
+}
 
 async function fetchOfficialMusicArtwork(title, artist) {
   let clean = title
@@ -35,11 +46,17 @@ async function fetchOfficialMusicArtwork(title, artist) {
 
 async function resolveCoverArt(title, artist) {
   if (!title) return null;
-  if (artworkCache.has(title)) return artworkCache.get(title);
+  if (artworkCache.has(title)) {
+    const cached = artworkCache.get(title);
+    // Refresh LRU order
+    artworkCache.delete(title);
+    artworkCache.set(title, cached);
+    return cached;
+  }
 
   const coverArt = await fetchOfficialMusicArtwork(title, artist);
   if (coverArt) {
-    artworkCache.set(title, coverArt);
+    cacheArtwork(title, coverArt);
   }
   return coverArt;
 }

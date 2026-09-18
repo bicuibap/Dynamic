@@ -93,10 +93,31 @@ namespace MediaControl
             return 45;
         }
 
+        [DllImport("psapi.dll")]
+        public static extern int EmptyWorkingSet(IntPtr hwProc);
+
+        static void TrimProcessMemory()
+        {
+            foreach (var name in new[] { "electron", "DynamicIsland" })
+            {
+                foreach (var p in Process.GetProcessesByName(name))
+                {
+                    try { EmptyWorkingSet(p.Handle); } catch { }
+                }
+            }
+        }
+
         static void Main(string[] args)
         {
             if (args.Length == 0) return;
             string cmd = args[0].ToLowerInvariant();
+
+            if (cmd == "trim-memory")
+            {
+                TrimProcessMemory();
+                Console.WriteLine("OK");
+                return;
+            }
 
             if (cmd == "temp")
             {

@@ -21,11 +21,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleMute: () => ipcRenderer.invoke('toggle-mute'),
   
   // System Metrics
-  getSystemMetrics: () => ipcRenderer.invoke('get-system-metrics'),
+  getSystemMetrics: (includeGpu) => ipcRenderer.invoke('get-system-metrics', includeGpu),
   getCpuTemperature: () => ipcRenderer.invoke('get-cpu-temperature'),
   
   // Window interactions
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.invoke('set-ignore-mouse-events', ignore, options),
+  onAutoHideChanged: (callback) => {
+    ipcRenderer.on('auto-hide-changed', (event, autoHide) => callback(autoHide));
+  },
+  getAutoHideSetting: () => ipcRenderer.invoke('get-auto-hide-setting'),
+  setAutoHideSetting: (autoHide) => ipcRenderer.invoke('set-auto-hide-setting', autoHide),
   
   // Utilities
   openFileLocation: (filePath) => ipcRenderer.invoke('open-file-location', filePath),

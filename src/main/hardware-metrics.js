@@ -33,84 +33,131 @@ function getCpuUsage() {
   return Math.max(0, Math.min(100, usage));
 }
 
+let lastCpuTemp = null;
+let lastCpuTempTime = 0;
+let isFetchingCpuTemp = false;
+
 function getCpuTemperature() {
+  const now = Date.now();
+  if (lastCpuTemp !== null && (now - lastCpuTempTime < 2200)) {
+    return Promise.resolve(lastCpuTemp);
+  }
+  if (isFetchingCpuTemp) {
+    return Promise.resolve(lastCpuTemp);
+  }
+
+  isFetchingCpuTemp = true;
   return new Promise((resolve) => {
-    if (!mediaCtrlExePath) return resolve(null);
+    if (!mediaCtrlExePath) {
+      isFetchingCpuTemp = false;
+      return resolve(null);
+    }
     execFile(mediaCtrlExePath, ['temp'], { timeout: 1000 }, (err, stdout) => {
+      isFetchingCpuTemp = false;
+      lastCpuTempTime = Date.now();
       if (!err && stdout && stdout.trim()) {
         const val = parseInt(stdout.trim(), 10);
         if (val >= 20 && val <= 115) {
+          lastCpuTemp = val;
           return resolve(val);
         }
       }
-      // TRUNG THỰC: Không fake nhiệt độ nếu không lấy được (trả về null)
-      resolve(null);
+      resolve(lastCpuTemp);
     });
   });
 }
 
 let lastNetBytes = 0;
 let lastNetTime = 0;
+let lastSpeedText = "0.00 MB/s";
+let lastSpeedCheckTime = 0;
+let isFetchingNet = false;
 
 function getNetworkSpeed() {
+  const now = Date.now();
+  // Giãn cách đo mạng tối thiểu 2.5s và tránh chạy song song nhiều tiến trình netstat
+  if (now - lastSpeedCheckTime < 2400) {
+    return Promise.resolve(lastSpeedText);
+  }
+  if (isFetchingNet) {
+    return Promise.resolve(lastSpeedText);
+  }
+
+  isFetchingNet = true;
   return new Promise((resolve) => {
-    execFile('netstat', ['-e'], { timeout: 1000 }, (err, stdout) => {
-      let speedText = "0.00 MB/s";
+    execFile('netstat', ['-e'], { timeout: 1200 }, (err, stdout) => {
+      isFetchingNet = false;
+      lastSpeedCheckTime = Date.now();
       if (!err && stdout) {
-        // Output format: Bytes    1081060686   2380759800
         const match = stdout.match(/Bytes\s+(\d+)\s+(\d+)/i);
         if (match) {
           const rxBytes = parseInt(match[1], 10);
-          // Only track Received bytes for Download Speed
-          const now = Date.now();
+          const currentTime = Date.now();
           if (lastNetBytes > 0 && lastNetTime > 0) {
-            const timeDiff = (now - lastNetTime) / 1000;
+            const timeDiff = (currentTime - lastNetTime) / 1000;
             if (timeDiff > 0) {
               const byteDiff = rxBytes - lastNetBytes;
               if (byteDiff > 0) {
                 const bytesPerSec = byteDiff / timeDiff;
-                speedText = (bytesPerSec / (1024 * 1024)).toFixed(2) + " MB/s";
+                lastSpeedText = (bytesPerSec / (1024 * 1024)).toFixed(2) + " MB/s";
               }
             }
           }
           lastNetBytes = rxBytes;
-          lastNetTime = now;
+          lastNetTime = currentTime;
         }
       }
-      resolve(speedText);
+      resolve(lastSpeedText);
     });
   });
 }
 
-function getGpuMetrics() {
+let lastGpuResult = null;
+let lastGpuTime = 0;
+let isFetchingGpu = false;
+
+function getGpuMetrics(force = false) {
+  const now = Date.now();
+  // Cache GPU trong 8 giây để không gọi nvidia-smi dồn dập
+  if (!force && lastGpuResult && (now - lastGpuTime < 8000)) {
+    return Promise.resolve(lastGpuResult);
+  }
+  if (isFetchingGpu) {
+    return Promise.resolve(lastGpuResult);
+  }
+
+  isFetchingGpu = true;
   return new Promise((resolve) => {
-    execFile('nvidia-smi', ['--query-gpu=utilization.gpu,temperature.gpu,name', '--format=csv,noheader,nounits'], { timeout: 1000 }, (err, stdout) => {
+    execFile('nvidia-smi', ['--query-gpu=utilization.gpu,temperature.gpu,name', '--format=csv,noheader,nounits'], { timeout: 1500 }, (err, stdout) => {
+      isFetchingGpu = false;
       if (!err && stdout && stdout.trim()) {
         const parts = stdout.trim().split(', ');
         if (parts.length >= 3) {
-          return resolve({
+          lastGpuResult = {
             percent: parseInt(parts[0], 10) || 0,
             temp: parseInt(parts[1], 10) || 0,
             name: parts[2]
-          });
+          };
+          lastGpuTime = Date.now();
+          return resolve(lastGpuResult);
         }
       }
-      resolve(null);
+      resolve(lastGpuResult);
     });
   });
 }
 
-async function getSystemMetrics() {
+async function getSystemMetrics(includeGpu = false) {
   const totalMem = os.totalmem();
   const freeMem = os.freemem();
   const usedMem = totalMem - freeMem;
   const memUsagePercent = Math.round((usedMem / totalMem) * 100);
   const cpuUsagePercent = getCpuUsage();
   
-  // Parallel fetch for temps and network
+  // CHỈ quét GPU khi người dùng đang mở Dashboard phần cứng (includeGpu = true)
   const [cpuTemp, gpuMetrics, netSpeed] = await Promise.all([
     getCpuTemperature(),
-    getGpuMetrics(),
+    includeGpu ? getGpuMetrics() : Promise.resolve(lastGpuResult),
     getNetworkSpeed()
   ]);
 

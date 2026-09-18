@@ -21,14 +21,17 @@ document.addEventListener('DOMContentLoaded', () => {
   updateDateTime();
   setInterval(updateDateTime, 1000);
 
-  // 2. Real-time CPU Temperature Monitor
+  // 2. Real-time CPU & Hardware Monitor (Adaptive & Low-Power)
   const notchCpuVal = document.getElementById('notch-cpu-val');
   const notchCpuItem = document.getElementById('notch-cpu-item');
+  const islandPill = document.getElementById('island-pill');
 
   async function updateHardwareStats() {
     if (window.electronAPI && window.electronAPI.getSystemMetrics) {
       try {
-        const metrics = await window.electronAPI.getSystemMetrics();
+        // Chỉ quét GPU khi người dùng đang thực sự mở bảng Hardware Dashboard
+        const isHwOpen = islandPill && islandPill.classList.contains('mode-hardware');
+        const metrics = await window.electronAPI.getSystemMetrics(isHwOpen);
         if (metrics) {
           // 1. Cập nhật Mini Notch (Nhiệt độ)
           if (metrics.cpuTemp) {
@@ -63,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const hwGpuTemp = document.getElementById('hw-gpu-temp');
           const hwGpuBar = document.getElementById('hw-gpu-bar');
           const hwGpuStatus = document.getElementById('hw-gpu-status');
-          if (metrics.gpuPercent !== null) {
+          if (metrics.gpuPercent !== null && metrics.gpuPercent !== undefined) {
             if (hwGpuPercent) hwGpuPercent.textContent = `${metrics.gpuPercent}%`;
             if (hwGpuTemp && metrics.gpuTemp) hwGpuTemp.textContent = `${metrics.gpuTemp}°C`;
             if (hwGpuBar) hwGpuBar.style.width = `${metrics.gpuPercent}%`;
@@ -122,8 +125,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  updateHardwareStats();
-  setInterval(updateHardwareStats, 2000);
+  // Điều hòa tần suất quét: Giãn lên 10s khi đảo đang ẩn, 2.5s khi đang hiển thị
+  async function pollHardwareLoop() {
+    await updateHardwareStats();
+    const isHidden = islandPill && islandPill.classList.contains('island-hidden');
+    const delay = isHidden ? 10000 : 2500;
+    setTimeout(pollHardwareLoop, delay);
+  }
+
+  pollHardwareLoop();
 
   // 3. Real Weather & Location Service
   if (window.WeatherService) {

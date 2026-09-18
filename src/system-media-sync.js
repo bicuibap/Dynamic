@@ -8,15 +8,17 @@ class SystemMediaSync {
     this.lastTitle = '';
     this.isExpanded = false;
     this.hideTimeout = null;
+    this.autoHide = false; // Mặc định: KHÔNG tự ẩn (Luôn hiển thị trên màn hình)
 
     this.initElements();
     this.initVolume();
+    this.initMouseManager();
     this.bindEvents();
     this.initDaemonStream();
     this.startLocalTimer();
     
-    // Auto-hide initially
-    this.showIslandTemporarily(8000);
+    // Khởi tạo hiển thị ban đầu
+    this.showIslandTemporarily(this.autoHide ? 8000 : 0);
   }
 
   initElements() {
@@ -28,6 +30,7 @@ class SystemMediaSync {
     this.notchDiscImg = document.getElementById('notch-disc-img');
     this.notchDiscNote = document.getElementById('notch-disc-note');
     this.islandPill = document.getElementById('island-pill');
+    this.islandWrapper = document.getElementById('island-wrapper');
     this.islandHeader = document.getElementById('island-header');
     this.notchCpuItem = document.getElementById('notch-cpu-item');
     this.notchWeatherItem = document.getElementById('notch-weather-item');
@@ -92,6 +95,99 @@ class SystemMediaSync {
     }
     if (this.notchDisc) {
       this.notchDisc.style.display = 'none';
+    }
+  }
+
+  initMouseManager() {
+    this.mouseIgnored = true;
+    this.lastMouseX = -1;
+    this.lastMouseY = -1;
+
+    // Khởi tạo mặc định: xuyên thấu chuột để không chặn bất kỳ click nào
+    this.setMouseIgnored(true);
+
+    // Bắt sự kiện chuột di chuyển trên toàn bộ cửa sổ (được Electron forward)
+    window.addEventListener('mousemove', (e) => {
+      this.lastMouseX = e.clientX;
+      this.lastMouseY = e.clientY;
+      this.checkMouseHit(e.clientX, e.clientY);
+    });
+
+    // Khi chuột rời khỏi cửa sổ
+    window.addEventListener('mouseleave', () => {
+      this.lastMouseX = -1;
+      this.lastMouseY = -1;
+      if (!this.isScrubbing && !this.isDraggingVolume) {
+        this.setMouseIgnored(true);
+      }
+    });
+
+    // Khi cửa sổ mất tiêu điểm (chuyển sang ứng dụng khác)
+    window.addEventListener('blur', () => {
+      if (!this.isScrubbing && !this.isDraggingVolume) {
+        this.setMouseIgnored(true);
+      }
+    });
+  }
+
+  setMouseIgnored(ignore) {
+    if (this.mouseIgnored === ignore) return;
+    this.mouseIgnored = ignore;
+    if (window.electronAPI && window.electronAPI.setIgnoreMouseEvents) {
+      window.electronAPI.setIgnoreMouseEvents(ignore, { forward: true });
+    }
+  }
+
+  checkMouseHit(clientX, clientY) {
+    // Nếu đang giữ kéo tua hoặc kéo âm lượng, không bật xuyên thấu để không đứt tương tác
+    if (this.isScrubbing || this.isDraggingVolume) {
+      this.setMouseIgnored(false);
+      return;
+    }
+
+    // Nếu toạ độ chuột không hợp lệ hoặc ngoài khung hình
+    if (clientX < 0 || clientY < 0 || clientX === undefined) {
+      this.setMouseIgnored(true);
+      return;
+    }
+
+    // Nếu đảo đang ở trạng thái ẩn (trượt lên trên mép màn hình)
+    if (!this.islandPill ||
+        this.islandPill.classList.contains('island-hidden') ||
+        (this.islandWrapper && this.islandWrapper.classList.contains('island-hidden'))) {
+      this.setMouseIgnored(true);
+      return;
+    }
+
+    // Bounding Box Fast-Check
+    const rect = this.islandPill.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || rect.bottom <= 0) {
+      this.setMouseIgnored(true);
+      return;
+    }
+
+    if (
+      clientX < rect.left ||
+      clientX > rect.right ||
+      clientY < rect.top ||
+      clientY > rect.bottom
+    ) {
+      this.setMouseIgnored(true);
+      return;
+    }
+
+    // Hit-testing chi tiết với DOM element để đảm bảo con trỏ thực sự nằm trên đảo
+    const elem = document.elementFromPoint(clientX, clientY);
+    const isOverPill = !!(elem && (this.islandPill.contains(elem) || elem === this.islandPill));
+
+    if (isOverPill) {
+      this.setMouseIgnored(false);
+      this.showIslandTemporarily(0);
+    } else {
+      this.setMouseIgnored(true);
+      if (this.autoHide && !this.hideTimeout && !this.isExpanded) {
+        this.showIslandTemporarily(8000);
+      }
     }
   }
 
@@ -254,21 +350,10 @@ class SystemMediaSync {
       });
     }
 
-    // Mouse hover mouse passthrough management
+    // Hover trigger: chỉ đánh thức đảo khi di chuột vào mép trên, không bao giờ chặn click
     if (this.hoverTrigger) {
-      this.hoverTrigger.addEventListener('mouseenter', () => this.showIslandTemporarily(10000));
-    }
-
-    if (this.islandPill && window.electronAPI && window.electronAPI.setIgnoreMouseEvents) {
-      this.islandPill.addEventListener('mouseenter', () => {
-        this.showIslandTemporarily(0);
-        window.electronAPI.setIgnoreMouseEvents(false);
-      });
-      this.islandPill.addEventListener('mouseleave', () => {
-        this.showIslandTemporarily(8000);
-        if (!this.isExpanded) {
-          window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-        }
+      this.hoverTrigger.addEventListener('mouseenter', () => {
+        this.showIslandTemporarily(10000);
       });
     }
 
@@ -310,6 +395,7 @@ class SystemMediaSync {
       if (this.isDraggingVolume) {
         this.finishVolumeDrag(e);
       }
+      this.checkMouseHit(e.clientX, e.clientY);
     });
 
     // Volume Mute Button
@@ -372,13 +458,12 @@ class SystemMediaSync {
         this.showIslandTemporarily(0);
         this.islandPill.classList.remove('island-collapsed');
         this.islandPill.classList.add('island-expanded');
-        if (window.electronAPI && window.electronAPI.setIgnoreMouseEvents) {
-          window.electronAPI.setIgnoreMouseEvents(false);
-        }
+        this.checkMouseHit(this.lastMouseX, this.lastMouseY);
       } else {
         this.showIslandTemporarily(8000);
         this.islandPill.classList.remove('island-expanded', 'mode-hardware', 'mode-weather', 'mode-calendar', 'mode-bot', 'mode-mini', 'mode-alert');
         this.islandPill.classList.add('island-collapsed');
+        this.checkMouseHit(this.lastMouseX, this.lastMouseY);
         
         setTimeout(() => {
           this.dashboardPanel.style.removeProperty('opacity');
@@ -402,9 +487,11 @@ class SystemMediaSync {
     this.alertTimer = setTimeout(() => {
       if (this.isExpanded && this.islandPill.classList.contains('mode-alert')) {
         this.toggleExpand(false);
-        // Nếu trước đó đang ẩn, thì ẩn luôn ngay lập tức thay vì đợi 8s
-        if (wasHidden) {
+        // Nếu trước đó đang ẩn và có bật tự ẩn, thì ẩn luôn ngay lập tức thay vì đợi 8s
+        if (wasHidden && this.autoHide) {
           this.islandPill.classList.add('island-hidden');
+          if (this.islandWrapper) this.islandWrapper.classList.add('island-hidden');
+          this.setMouseIgnored(true);
           if (this.hideTimeout) clearTimeout(this.hideTimeout);
         }
       }
@@ -519,6 +606,34 @@ class SystemMediaSync {
           this.toggleExpand();
         }
       });
+    }
+
+    // Nhận cập nhật trạng thái tự động ẩn (Auto-Hide) từ Tray/Main
+    if (window.electronAPI) {
+      if (window.electronAPI.onAutoHideChanged) {
+        window.electronAPI.onAutoHideChanged((autoHide) => {
+          this.autoHide = autoHide;
+          if (!this.autoHide) {
+            if (this.islandPill) this.islandPill.classList.remove('island-hidden');
+            if (this.islandWrapper) this.islandWrapper.classList.remove('island-hidden');
+            if (this.hideTimeout) {
+              clearTimeout(this.hideTimeout);
+              this.hideTimeout = null;
+            }
+          }
+        });
+      }
+      if (window.electronAPI.getAutoHideSetting) {
+        window.electronAPI.getAutoHideSetting().then((autoHide) => {
+          if (typeof autoHide === 'boolean') {
+            this.autoHide = autoHide;
+            if (!this.autoHide) {
+              if (this.islandPill) this.islandPill.classList.remove('island-hidden');
+              if (this.islandWrapper) this.islandWrapper.classList.remove('island-hidden');
+            }
+          }
+        });
+      }
     }
   }
 
@@ -825,6 +940,7 @@ class SystemMediaSync {
   showIslandTemporarily(durationMs = 8000) {
     if (this.islandPill) {
       this.islandPill.classList.remove('island-hidden');
+      if (this.islandWrapper) this.islandWrapper.classList.remove('island-hidden');
     }
     
     if (this.hideTimeout) {
@@ -837,9 +953,11 @@ class SystemMediaSync {
         if (this.isExpanded) {
           // Tự động thu gọn nếu đang mở rộng UI sau 8s không làm gì
           this.toggleExpand(false);
-        } else if (this.islandPill) {
-          // Trượt lên ẩn đi nếu đang ở trạng thái thu gọn
+        } else if (this.islandPill && this.autoHide) {
+          // Chỉ trượt lên ẩn đi nếu chế độ tự ẩn (autoHide) đang được BẬT
           this.islandPill.classList.add('island-hidden');
+          if (this.islandWrapper) this.islandWrapper.classList.add('island-hidden');
+          this.setMouseIgnored(true);
         }
       }, durationMs);
     }
