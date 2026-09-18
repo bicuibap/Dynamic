@@ -43,5 +43,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileLocation: (filePath) => ipcRenderer.invoke('open-file-location', filePath),
   copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
   openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
-  getWindowsMediaInfo: () => ipcRenderer.invoke('get-windows-media-info')
+  getWindowsMediaInfo: () => ipcRenderer.invoke('get-windows-media-info'),
+  onSystemNotification: (callback) => {
+    ipcRenderer.on('system-notification', (event, data) => callback(data));
+  },
+  onVolumeNotification: (callback) => {
+    ipcRenderer.on('volume-notification', (event, data) => callback(data));
+  }
 });

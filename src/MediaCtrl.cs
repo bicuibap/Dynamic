@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Management;
+using System.Text;
 
 namespace MediaControl
 {
@@ -49,10 +50,108 @@ namespace MediaControl
         int GetMute(out bool pbMute);
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    public class MONITORINFO
+    {
+        public int cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+        public RECT rcMonitor = new RECT();
+        public RECT rcWork = new RECT();
+        public int dwFlags = 0;
+    }
+
     class Program
     {
         [DllImport("user32.dll")]
         public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetShellWindow();
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetDesktopWindow();
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern bool GetMonitorInfo(IntPtr hMonitor, [In, Out] MONITORINFO lpmi);
+
+        const uint MONITOR_DEFAULTTONEAREST = 2;
+
+        static bool IsForegroundFullscreen()
+        {
+            try
+            {
+                IntPtr fg = GetForegroundWindow();
+                if (fg == IntPtr.Zero) return false;
+
+                if (fg == GetShellWindow() || fg == GetDesktopWindow()) return false;
+
+                // Class name check
+                StringBuilder sbClass = new StringBuilder(256);
+                GetClassName(fg, sbClass, 256);
+                string cls = sbClass.ToString();
+
+                // Shell & desktop window classes
+                if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd")
+                {
+                    return false;
+                }
+
+                // Window title check (ignore our own Dynamic Island)
+                StringBuilder sbTitle = new StringBuilder(256);
+                GetWindowText(fg, sbTitle, 256);
+                string title = sbTitle.ToString();
+                if (title.IndexOf("Dynamic Island", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    title.IndexOf("DynamicIsland", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return false;
+                }
+
+                // Get monitor info
+                IntPtr hMon = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
+                if (hMon == IntPtr.Zero) return false;
+
+                MONITORINFO mi = new MONITORINFO();
+                if (!GetMonitorInfo(hMon, mi)) return false;
+
+                RECT r;
+                if (!GetWindowRect(fg, out r)) return false;
+
+                // Check if window bounds cover the entire monitor bounds
+                bool coversMonitor = (r.Left <= mi.rcMonitor.Left + 1) &&
+                                     (r.Top <= mi.rcMonitor.Top + 1) &&
+                                     (r.Right >= mi.rcMonitor.Right - 1) &&
+                                     (r.Bottom >= mi.rcMonitor.Bottom - 1);
+
+                return coversMonitor;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
         const uint KEYEVENTF_KEYUP = 0x0002;
@@ -183,6 +282,12 @@ namespace MediaControl
         {
             if (args.Length == 0) return;
             string cmd = args[0].ToLowerInvariant();
+
+            if (cmd == "is-fullscreen" || cmd == "fullscreen")
+            {
+                Console.WriteLine(IsForegroundFullscreen() ? "TRUE" : "FALSE");
+                return;
+            }
 
             if (cmd == "trim-memory")
             {

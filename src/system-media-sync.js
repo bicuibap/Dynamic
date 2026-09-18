@@ -784,6 +784,22 @@ class SystemMediaSync {
           }
         });
       }
+      if (window.electronAPI.onSystemNotification) {
+        window.electronAPI.onSystemNotification((data) => {
+          if (data) this.showAlert(data.message || data.title, data.icon || '📌', data.title || 'Dynamic Island');
+        });
+      }
+      if (window.electronAPI.onVolumeNotification) {
+        window.electronAPI.onVolumeNotification((data) => {
+          if (data && data.volume !== undefined) {
+            this.currentVolume = data.volume;
+            this.isMuted = data.volume === 0;
+            if (this.volFill) this.volFill.style.width = `${data.volume}%`;
+            if (this.volText) this.volText.textContent = `${data.volume}%`;
+            this.showVolumeMini(data.volume);
+          }
+        });
+      }
     }
   }
 

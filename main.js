@@ -64,11 +64,73 @@ function getAssetPath(...parts) {
 }
 
 const mediaCtrlExePath = getAssetPath('src', 'MediaCtrl.exe');
+
+// Tự động kiểm tra và biên dịch MediaCtrl.exe nếu thiếu (Ví dụ: khi vừa clone repo về)
+function ensureMediaCtrlBinary() {
+  if (!fs.existsSync(mediaCtrlExePath)) {
+    const csPath = getAssetPath('src', 'MediaCtrl.cs');
+    const cscPath = 'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe';
+    if (fs.existsSync(csPath) && fs.existsSync(cscPath)) {
+      try {
+        const { execFileSync } = require('child_process');
+        execFileSync(cscPath, ['/target:exe', '/optimize+', `/out:${mediaCtrlExePath}`, csPath, '/r:System.Management.dll'], { timeout: 10000 });
+        console.log('[NATIVE] Auto-compiled MediaCtrl.exe successfully.');
+      } catch (e) {
+        console.error('[NATIVE] Failed to auto-compile MediaCtrl.exe:', e);
+      }
+    }
+  }
+}
+ensureMediaCtrlBinary();
+
 initHardwareMetrics(mediaCtrlExePath);
 const controlMediaScriptPath = getAssetPath('src', 'control-media.ps1');
 const daemonScriptPath = getAssetPath('src', 'media-daemon.ps1');
 const createStartupShortcutScript = getAssetPath('src', 'create-startup-shortcut.ps1');
 const runVbsPath = path.join(__dirname, 'run-background.vbs');
+
+// Core Action Execution Helpers (Dùng chung cho cả IPC và Action Agent)
+function executeMediaControl(action) {
+  const allowedActions = ['play', 'pause', 'playpause', 'next', 'prev', 'previous', 'stop'];
+  if (!allowedActions.includes(action.toLowerCase())) {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', controlMediaScriptPath, action], { timeout: 2000 }, (err, stdout) => {
+      if (!err && stdout && stdout.includes('OK_WINRT')) {
+        return resolve(true);
+      }
+      execFile(mediaCtrlExePath, [action], { timeout: 1000 }, () => resolve(true));
+    });
+  });
+}
+
+function executeGetVolume() {
+  return new Promise((resolve) => {
+    execFile(mediaCtrlExePath, ['get-volume'], { timeout: 1000 }, (err, stdout) => {
+      if (!err && stdout && stdout.trim()) {
+        const parts = stdout.trim().split(':');
+        const vol = parseInt(parts[0], 10);
+        const mute = parts[1] === 'True';
+        return resolve({ volume: isNaN(vol) ? 50 : vol, isMuted: mute });
+      }
+      resolve({ volume: 50, isMuted: false });
+    });
+  });
+}
+
+function executeSetVolume(volumePct) {
+  const pct = Math.max(0, Math.min(100, Math.round(volumePct)));
+  return new Promise((resolve) => {
+    execFile(mediaCtrlExePath, ['set-volume', String(pct)], { timeout: 1000 }, (err) => resolve(!err));
+  });
+}
+
+function executeToggleMute() {
+  return new Promise((resolve) => {
+    execFile(mediaCtrlExePath, ['mute'], { timeout: 1000 }, (err) => resolve(!err));
+  });
+}
 
 // IPC: Ignore Mouse Events
 ipcMain.handle('set-ignore-mouse-events', (event, ignore, options) => {
@@ -94,26 +156,11 @@ ipcMain.handle('focus-window', (event) => {
 
 // IPC: Media Control
 ipcMain.handle('media-control', async (event, action) => {
-  // BẢO MẬT: Whitelist các lệnh hợp lệ để chống Command Injection
-  const allowedActions = ['play', 'pause', 'playpause', 'next', 'prev', 'previous', 'stop'];
-  if (!allowedActions.includes(action.toLowerCase())) {
-    console.error('[SECURITY] Blocked malicious media control action:', action);
-    return false;
-  }
-
-  return new Promise((resolve) => {
-    execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', controlMediaScriptPath, action], { timeout: 2000 }, (err, stdout) => {
-      if (!err && stdout && stdout.includes('OK_WINRT')) {
-        return resolve(true);
-      }
-      execFile(mediaCtrlExePath, [action], { timeout: 1000 }, () => resolve(true));
-    });
-  });
+  return await executeMediaControl(action);
 });
 
 // IPC: Seek Media
 ipcMain.handle('seek-media', async (event, seconds) => {
-  // BẢO MẬT: Ép kiểu nguyên ngặt để chống Injection
   const parsedSeconds = parseInt(seconds, 10);
   if (isNaN(parsedSeconds)) {
     console.error('[SECURITY] Blocked malicious seek time:', seconds);
@@ -126,31 +173,9 @@ ipcMain.handle('seek-media', async (event, seconds) => {
 });
 
 // IPC: System Master Volume Controls
-ipcMain.handle('get-volume', async () => {
-  return new Promise((resolve) => {
-    execFile(mediaCtrlExePath, ['get-volume'], { timeout: 1000 }, (err, stdout) => {
-      if (!err && stdout && stdout.trim()) {
-        const parts = stdout.trim().split(':');
-        const vol = parseInt(parts[0], 10);
-        const mute = parts[1] === 'True';
-        return resolve({ volume: isNaN(vol) ? 50 : vol, isMuted: mute });
-      }
-      resolve({ volume: 50, isMuted: false });
-    });
-  });
-});
-
-ipcMain.handle('set-volume', async (event, volumePct) => {
-  return new Promise((resolve) => {
-    execFile(mediaCtrlExePath, ['set-volume', String(Math.round(volumePct))], { timeout: 1000 }, (err) => resolve(!err));
-  });
-});
-
-ipcMain.handle('toggle-mute', async () => {
-  return new Promise((resolve) => {
-    execFile(mediaCtrlExePath, ['mute'], { timeout: 1000 }, (err) => resolve(!err));
-  });
-});
+ipcMain.handle('get-volume', async () => await executeGetVolume());
+ipcMain.handle('set-volume', async (event, volumePct) => await executeSetVolume(volumePct));
+ipcMain.handle('toggle-mute', async () => await executeToggleMute());
 
 // IPC: Hardware Metrics
 ipcMain.handle('get-cpu-temperature', async () => await getCpuTemperature());
@@ -193,7 +218,8 @@ app.whenReady().then(() => {
     startupScript: createStartupShortcutScript,
     indexHtml: path.join(__dirname, 'index.html'),
     preloadJs: path.join(__dirname, 'preload.js'),
-    runVbs: runVbsPath
+    runVbs: runVbsPath,
+    mediaCtrlExe: mediaCtrlExePath
   });
 
   const win = createWindow();
@@ -237,7 +263,7 @@ setTimeout(trimMemory, 6000);
 setInterval(trimMemory, 3 * 60 * 1000);
 
 // ==========================================
-// THÊM XỬ LÝ GEMINI AI & TRỢ LÝ THÔNG MINH OFFLINE
+// THÊM XỬ LÝ GEMINI AI & ACTION AGENT NỘI BỘ
 // ==========================================
 function getGeminiApiKey() {
   // 1. Kiểm tra cài đặt người dùng đã lưu trong AppData
@@ -253,22 +279,25 @@ function getGeminiApiKey() {
   return null;
 }
 
-// Trợ lý thông minh cục bộ (Hoạt động offline 100% không cần API Key)
+let sleepTimerTimeout = null;
+let sleepTimerTargetTime = null;
+
+// Trợ lý hành động thông minh cục bộ (Action Agent - 100% Offline không cần API Key)
 async function handleLocalSmartQuery(query) {
   const lower = query.toLowerCase().trim();
 
   // 1. Chào hỏi / Danh tính
-  if (/^(chào|hi|hello|hey|alo|xin chào|bạn là ai|mày là ai|giới thiệu|ai đấy)/i.test(lower)) {
-    return "Xin chào! Tôi là Dynamic Island AI Assistant trên Windows. Tôi có thể theo dõi nhiệt độ CPU/RAM, thời tiết, điều khiển nhạc và giải đáp thắc mắc của bạn!";
+  if (/^(chào|hi|hello|hey|alo|xin chào|bạn là ai|mày là ai|giới thiệu|ai đấy)$/i.test(lower)) {
+    return "Xin chào! Tôi là Trợ lý Dynamic Island. Tôi có thể điều khiển nhạc, âm lượng, nhiệt độ máy và hỗ trợ bạn mọi lúc 🏝️";
   }
 
   // 2. Thời gian / Ngày tháng
   if (/(mấy giờ|thời gian|bây giờ là|hôm nay ngày|ngày mấy|tháng mấy|hôm nay thứ)/i.test(lower)) {
     const now = new Date();
     const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    const dateStr = `${days[now.getDay()]}, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
-    return `Bây giờ là ${timeStr} (${dateStr}).`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const dateStr = `${days[now.getDay()]}, ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+    return `Bây giờ là ${timeStr} (${dateStr}) ⏰`;
   }
 
   // 3. Thông số phần cứng (CPU / RAM / Nhiệt độ)
@@ -276,20 +305,186 @@ async function handleLocalSmartQuery(query) {
     try {
       const metrics = await getSystemMetrics(false);
       const temp = await getCpuTemperature();
-      return `Thông số hiện tại: CPU ${metrics.cpuPercent || '--'}% (Nhiệt độ ~${temp || '--'}°C), RAM ${metrics.ramPercent || '--'}% (${metrics.ramUsed || '--'}/${metrics.ramTotal || '--'} GB).`;
+      return `CPU: ${metrics.cpuPercent || '--'}% (~${temp || '--'}°C) | RAM: ${metrics.ramPercent || '--'}% (${metrics.usedRamGb || '--'}/${metrics.totalRamGb || '--'}GB) ⚡`;
     } catch (e) {
-      return "Hệ thống đang hoạt động ổn định và mượt mà.";
+      return "Hệ thống đang hoạt động ổn định và mượt mà ⚡";
     }
   }
 
   // 4. Nhạc đang phát
-  if (/(nhạc|bài hát|đang phát|bài gì|đang nghe)/i.test(lower)) {
+  if (/(nhạc gì|bài hát gì|đang phát|bài gì|đang nghe)/i.test(lower)) {
     const media = getLatestMediaData();
     if (media && media.title && media.title.trim()) {
-      const artist = media.artist ? ` của ${media.artist}` : '';
-      return `Bạn đang nghe bài: "${media.title}"${artist}.`;
+      const artist = media.artist ? ` - ${media.artist}` : '';
+      return `Đang phát: "${media.title}"${artist} 🎵`;
     }
-    return "Hiện chưa có bài hát nào đang phát trên Spotify, YouTube hoặc Chrome.";
+    return "Hiện chưa có bài hát nào đang phát trên máy 🎵";
+  }
+
+  // 5. ACTION: Hẹn giờ tắt nhạc (Sleep Timer)
+  const sleepMatch = lower.match(/(?:hẹn giờ|tự động|hãy)?\s*tắt nhạc\s*(?:sau|trong)?\s*(\d+)\s*(phút|p|giây|s|tiếng|giờ|h)?/i);
+  if (sleepMatch) {
+    const num = parseInt(sleepMatch[1], 10);
+    const unit = (sleepMatch[2] || 'phút').toLowerCase();
+    let mins = num;
+    if (unit === 'giây' || unit === 's') mins = Math.max(0.1, num / 60);
+    else if (unit === 'tiếng' || unit === 'giờ' || unit === 'h') mins = num * 60;
+
+    if (sleepTimerTimeout) clearTimeout(sleepTimerTimeout);
+    const ms = mins * 60 * 1000;
+    sleepTimerTargetTime = Date.now() + ms;
+    sleepTimerTimeout = setTimeout(() => {
+      executeMediaControl('pause');
+      const win = getWindow();
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('system-notification', {
+          icon: '🌙',
+          title: 'Hẹn giờ tắt nhạc',
+          message: `Đã dừng nhạc sau ${num} ${unit}. Chúc bạn ngủ ngon!`
+        });
+      }
+      sleepTimerTimeout = null;
+      sleepTimerTargetTime = null;
+    }, ms);
+
+    return `⏱️ Đã đặt hẹn giờ tắt nhạc sau ${num} ${unit}. Chúc bạn ngủ ngon! 🌙`;
+  }
+
+  if (/(?:hủy|xóa|tắt)\s*(?:hẹn giờ tắt nhạc|hẹn giờ)/i.test(lower)) {
+    if (sleepTimerTimeout) {
+      clearTimeout(sleepTimerTimeout);
+      sleepTimerTimeout = null;
+      sleepTimerTargetTime = null;
+      return "⏰ Đã hủy lịch hẹn giờ tắt nhạc thành công!";
+    }
+    return "Hiện không có lịch hẹn giờ tắt nhạc nào đang chạy ⏰";
+  }
+
+  // 6. ACTION: Hẹn giờ tắt máy (Shutdown Timer)
+  const shutdownMatch = lower.match(/(?:hẹn giờ|tự động)?\s*tắt máy\s*(?:sau|trong)?\s*(\d+)\s*(phút|p|giây|s|tiếng|giờ|h)?/i);
+  if (shutdownMatch) {
+    const num = parseInt(shutdownMatch[1], 10);
+    const unit = (shutdownMatch[2] || 'phút').toLowerCase();
+    let seconds = num * 60;
+    if (unit === 'giây' || unit === 's') seconds = num;
+    else if (unit === 'tiếng' || unit === 'giờ' || unit === 'h') seconds = num * 3600;
+
+    execFile('shutdown.exe', ['/s', '/t', String(seconds)], () => {});
+    return `🔌 Đã lên lịch tắt máy sau ${num} ${unit} (Gõ "hủy tắt máy" nếu muốn hủy).`;
+  }
+
+  if (/(?:hủy tắt máy|cancel shutdown|đừng tắt máy)/i.test(lower)) {
+    execFile('shutdown.exe', ['/a'], () => {});
+    return "✅ Đã hủy lệnh tự động tắt máy tính thành công.";
+  }
+
+  // 7. ACTION: Điều khiển âm lượng (Volume Controls)
+  const volSetMatch = lower.match(/(?:âm lượng|volume|tiếng)\s*(?:lên|xuống|thành|về)?\s*(\d{1,3})%?/i);
+  if (volSetMatch) {
+    const targetVol = Math.max(0, Math.min(100, parseInt(volSetMatch[1], 10)));
+    await executeSetVolume(targetVol);
+    const win = getWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('volume-notification', { volume: targetVol });
+    }
+    return `🔊 Đã đặt âm lượng hệ thống thành ${targetVol}%`;
+  }
+
+  if (/(?:tăng|bật to|cho to)\s*(?:âm lượng|volume|tiếng)/i.test(lower)) {
+    const cur = await executeGetVolume();
+    const incMatch = lower.match(/\d+/);
+    const delta = incMatch ? parseInt(incMatch[0], 10) : 10;
+    const newVol = Math.min(100, cur.volume + delta);
+    await executeSetVolume(newVol);
+    const win = getWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('volume-notification', { volume: newVol });
+    }
+    return `🔊 Đã tăng âm lượng lên ${newVol}%`;
+  }
+
+  if (/(?:giảm|hạ|bật nhỏ|cho nhỏ)\s*(?:âm lượng|volume|tiếng)/i.test(lower)) {
+    const cur = await executeGetVolume();
+    const decMatch = lower.match(/\d+/);
+    const delta = decMatch ? parseInt(decMatch[0], 10) : 10;
+    const newVol = Math.max(0, cur.volume - delta);
+    await executeSetVolume(newVol);
+    const win = getWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('volume-notification', { volume: newVol });
+    }
+    return `🔉 Đã giảm âm lượng xuống ${newVol}%`;
+  }
+
+  if (/^(tắt tiếng|mute|im lặng|tắt loa)$/i.test(lower)) {
+    const cur = await executeGetVolume();
+    if (!cur.isMuted) {
+      await executeToggleMute();
+    }
+    const win = getWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('volume-notification', { volume: 0 });
+    }
+    return "🔇 Đã tắt tiếng hệ thống (Mute).";
+  }
+
+  if (/^(bật tiếng|unmute|mở loa|bật loa)$/i.test(lower)) {
+    const cur = await executeGetVolume();
+    if (cur.isMuted) {
+      await executeToggleMute();
+    }
+    const win = getWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('volume-notification', { volume: cur.volume });
+    }
+    return `🔊 Đã bật lại âm thanh (${cur.volume}%).`;
+  }
+
+  // 8. ACTION: Điều khiển Media (Playback & Track)
+  if (/(?:dừng nhạc|tắt nhạc|tạm dừng|pause nhạc|ngừng phát)$/i.test(lower)) {
+    await executeMediaControl('pause');
+    return "⏸️ Đã tạm dừng phát nhạc.";
+  }
+
+  if (/(?:tiếp tục phát|bật nhạc|play nhạc|nghe tiếp|phát nhạc)$/i.test(lower)) {
+    await executeMediaControl('play');
+    return "▶️ Đang tiếp tục phát nhạc.";
+  }
+
+  if (/(?:chuyển bài|qua bài|next bài|bài tiếp|next)$/i.test(lower)) {
+    await executeMediaControl('next');
+    return "⏭️ Đã chuyển sang bài tiếp theo.";
+  }
+
+  if (/(?:bài trước|quay lại bài|prev bài|previous)$/i.test(lower)) {
+    await executeMediaControl('prev');
+    return "⏮️ Đã quay lại bài hát trước.";
+  }
+
+  // 9. ACTION: Mở ứng dụng nhanh (Quick Launch)
+  if (/^mở spotify$/i.test(lower)) {
+    shell.openExternal('spotify:');
+    return "🚀 Đang mở Spotify...";
+  }
+
+  if (/^mở youtube$/i.test(lower)) {
+    shell.openExternal('https://youtube.com');
+    return "🚀 Đang mở YouTube...";
+  }
+
+  if (/^mở (chrome|trình duyệt)$/i.test(lower)) {
+    execFile('cmd', ['/c', 'start chrome'], () => {});
+    return "🚀 Đang mở Google Chrome...";
+  }
+
+  if (/^mở (notepad|ghi chú)$/i.test(lower)) {
+    execFile('notepad.exe', () => {});
+    return "🚀 Đang mở Notepad...";
+  }
+
+  if (/^mở (máy tính|calc|calculator)$/i.test(lower)) {
+    execFile('calc.exe', () => {});
+    return "🚀 Đang mở Máy tính (Calculator)...";
   }
 
   return null;
@@ -323,7 +518,7 @@ async function generateGeminiContent(apiKey, prompt) {
 
 ipcMain.handle('ask-gemini', async (event, query) => {
   const trimmed = (query || '').trim();
-  if (!trimmed) return "Vui lòng nhập câu hỏi.";
+  if (!trimmed) return "Vui lòng nhập câu hỏi hoặc lệnh.";
 
   // 1. Hỗ trợ lệnh đổi/lưu API Key trực tiếp trong khung chat: /key <your_api_key>
   if (trimmed.startsWith('/key ') || trimmed.startsWith('/setkey ')) {
@@ -336,7 +531,7 @@ ipcMain.handle('ask-gemini', async (event, query) => {
     }
   }
 
-  // 2. Thử phản hồi câu hỏi hệ thống / offline trước
+  // 2. Thử phản hồi Action Engine và câu hỏi hệ thống / offline trước
   const localReply = await handleLocalSmartQuery(trimmed);
   if (localReply) {
     return localReply;
@@ -345,13 +540,16 @@ ipcMain.handle('ask-gemini', async (event, query) => {
   // 3. Kiểm tra API Key cho các câu hỏi AI tổng quát
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
-    return "Tôi cần Google Gemini API Key để trả lời câu hỏi này. Bạn hãy lấy key miễn phí tại https://aistudio.google.com rồi gõ: `/key <API_KEY>` ngay tại đây nhé!";
+    return "Tôi cần Google Gemini API Key để giải đáp câu hỏi tri thức này. Lấy key miễn phí tại https://aistudio.google.com rồi gõ: `/key <API_KEY>` ngay tại đây nhé!";
   }
 
   try {
-    const prompt = `Bạn là một trợ lý ảo siêu thông minh tên là "Dynamic Island Bot", hoạt động trên màn hình desktop của Windows.
-Hãy trả lời ngắn gọn, thân thiện và súc tích bằng tiếng Việt, tối đa 2-3 câu, vì bạn đang hiển thị trên một thanh thông báo nhỏ (như Siri).
-Câu hỏi của người dùng: ${trimmed}`;
+    const prompt = `Bạn là Trợ lý Dynamic Island hoạt động trên một thanh notch nhỏ gọn trên màn hình Windows.
+Quy tắc trả lời:
+- CỰC KỲ NGẮN GỌN: Tối đa 1 đến 2 câu ngắn (dưới 25 từ).
+- Đi thẳng vào đáp án trọng tâm, không chào hỏi dài dòng, không lặp lại câu hỏi.
+- Luôn kết thúc bằng 1 emoji phù hợp.
+Câu hỏi: ${trimmed}`;
 
     return await generateGeminiContent(apiKey, prompt);
   } catch (error) {

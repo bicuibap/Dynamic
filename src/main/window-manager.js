@@ -16,10 +16,14 @@ const settingsPath = path.join(os.homedir(), 'AppData', 'Roaming', 'DynamicIslan
 function loadSettings() {
   try {
     if (fs.existsSync(settingsPath)) {
-      return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      const parsed = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      if (parsed.autoHideOnFullscreen === undefined) {
+        parsed.autoHideOnFullscreen = true;
+      }
+      return parsed;
     }
   } catch (e) {}
-  return { autoHide: false }; // Mặc định: KHÔNG tự ẩn (Luôn hiển thị trên màn hình)
+  return { autoHide: false, autoHideOnFullscreen: true };
 }
 
 function saveSettings(settings) {
@@ -43,10 +47,17 @@ function updateAutoHide(autoHide) {
   }
 }
 
+function updateAutoHideOnFullscreen(enabled) {
+  currentSettings.autoHideOnFullscreen = enabled;
+  saveSettings(currentSettings);
+  updateTrayMenu();
+}
+
 let startupScriptPath = '';
 let indexHtmlPath = '';
 let preloadJsPath = '';
 let runVbsPath = '';
+let mediaCtrlExePath = '';
 let currentDisplayIndex = 0;
 
 function initWindowManager(paths) {
@@ -54,6 +65,7 @@ function initWindowManager(paths) {
   indexHtmlPath = paths.indexHtml;
   preloadJsPath = paths.preloadJs;
   runVbsPath = paths.runVbs;
+  mediaCtrlExePath = paths.mediaCtrlExe || '';
 }
 
 function createWindow() {
@@ -99,6 +111,7 @@ function createWindow() {
     // Đồng bộ cài đặt autoHide cho renderer
     mainWindow.webContents.send('auto-hide-changed', currentSettings.autoHide);
     setupWakeCheck();
+    setupFullscreenCheck();
   });
 
   mainWindow.on('minimize', (e) => {
@@ -119,6 +132,10 @@ function createWindow() {
     if (wakeCheckInterval) {
       clearInterval(wakeCheckInterval);
       wakeCheckInterval = null;
+    }
+    if (fullscreenCheckInterval) {
+      clearInterval(fullscreenCheckInterval);
+      fullscreenCheckInterval = null;
     }
     mainWindow = null;
   });
@@ -207,6 +224,50 @@ function setupWakeCheck() {
   }, 80);
 }
 
+let fullscreenCheckInterval = null;
+let isSuppressedByFullscreen = false;
+
+function setupFullscreenCheck() {
+  if (fullscreenCheckInterval) clearInterval(fullscreenCheckInterval);
+  isSuppressedByFullscreen = false;
+
+  fullscreenCheckInterval = setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || !mediaCtrlExePath) return;
+
+    if (currentSettings.autoHideOnFullscreen === false) {
+      if (isSuppressedByFullscreen) {
+        isSuppressedByFullscreen = false;
+        if (!mainWindow.isVisible()) {
+          mainWindow.showInactive();
+          mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+          mainWindow.setIgnoreMouseEvents(true, { forward: true });
+        }
+      }
+      return;
+    }
+
+    execFile(mediaCtrlExePath, ['is-fullscreen'], { timeout: 1000 }, (err, stdout) => {
+      if (err || !stdout) return;
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+
+      const isFs = stdout.trim() === 'TRUE';
+      if (isFs) {
+        if (!isSuppressedByFullscreen && mainWindow.isVisible()) {
+          isSuppressedByFullscreen = true;
+          mainWindow.hide();
+        }
+      } else {
+        if (isSuppressedByFullscreen) {
+          isSuppressedByFullscreen = false;
+          mainWindow.showInactive();
+          mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+          mainWindow.setIgnoreMouseEvents(true, { forward: true });
+        }
+      }
+    });
+  }, 1500);
+}
+
 function updateTrayMenu() {
   if (!tray) return;
   const contextMenu = Menu.buildFromTemplate([
@@ -233,6 +294,15 @@ function updateTrayMenu() {
       checked: !!currentSettings.autoHide,
       click: () => {
         updateAutoHide(true);
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '🎮 Tự động ẩn khi vào Game / Toàn màn hình',
+      type: 'checkbox',
+      checked: currentSettings.autoHideOnFullscreen !== false,
+      click: (menuItem) => {
+        updateAutoHideOnFullscreen(menuItem.checked);
       }
     },
     { type: 'separator' },
@@ -336,5 +406,6 @@ module.exports = {
   getWindow,
   getSettings,
   saveSettings,
-  updateAutoHide
+  updateAutoHide,
+  updateAutoHideOnFullscreen
 };
