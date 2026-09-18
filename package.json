@@ -47,8 +47,8 @@
   "author": "Antigravity",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^34.2.0",
-    "electron-builder": "^26.0.2"
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
