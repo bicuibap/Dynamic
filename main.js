@@ -237,7 +237,7 @@ setTimeout(trimMemory, 6000);
 setInterval(trimMemory, 3 * 60 * 1000);
 
 // ==========================================
-// THÊM XỬ LÝ GEMINI AI (Hỗ trợ đa tầng Model & Tự động nhận diện trên mọi máy)
+// THÊM XỬ LÝ GEMINI AI & TRỢ LÝ THÔNG MINH OFFLINE
 // ==========================================
 function getGeminiApiKey() {
   // 1. Kiểm tra cài đặt người dùng đã lưu trong AppData
@@ -249,18 +249,55 @@ function getGeminiApiKey() {
   if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() && process.env.GEMINI_API_KEY !== 'your_api_key_here') {
     return process.env.GEMINI_API_KEY.trim();
   }
-  // 3. Nếu chưa cấu hình, trả về null để hướng dẫn người dùng nhập /key
+  // 3. Nếu chưa cấu hình, trả về null
+  return null;
+}
+
+// Trợ lý thông minh cục bộ (Hoạt động offline 100% không cần API Key)
+async function handleLocalSmartQuery(query) {
+  const lower = query.toLowerCase().trim();
+
+  // 1. Chào hỏi / Danh tính
+  if (/^(chào|hi|hello|hey|alo|xin chào|bạn là ai|mày là ai|giới thiệu|ai đấy)/i.test(lower)) {
+    return "Xin chào! Tôi là Dynamic Island AI Assistant trên Windows. Tôi có thể theo dõi nhiệt độ CPU/RAM, thời tiết, điều khiển nhạc và giải đáp thắc mắc của bạn!";
+  }
+
+  // 2. Thời gian / Ngày tháng
+  if (/(mấy giờ|thời gian|bây giờ là|hôm nay ngày|ngày mấy|tháng mấy|hôm nay thứ)/i.test(lower)) {
+    const now = new Date();
+    const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const dateStr = `${days[now.getDay()]}, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
+    return `Bây giờ là ${timeStr} (${dateStr}).`;
+  }
+
+  // 3. Thông số phần cứng (CPU / RAM / Nhiệt độ)
+  if (/(cpu|ram|phần cứng|nhiệt độ|máy nóng|bộ nhớ)/i.test(lower)) {
+    try {
+      const metrics = await getSystemMetrics(false);
+      const temp = await getCpuTemperature();
+      return `Thông số hiện tại: CPU ${metrics.cpuPercent || '--'}% (Nhiệt độ ~${temp || '--'}°C), RAM ${metrics.ramPercent || '--'}% (${metrics.ramUsed || '--'}/${metrics.ramTotal || '--'} GB).`;
+    } catch (e) {
+      return "Hệ thống đang hoạt động ổn định và mượt mà.";
+    }
+  }
+
+  // 4. Nhạc đang phát
+  if (/(nhạc|bài hát|đang phát|bài gì|đang nghe)/i.test(lower)) {
+    const media = getLatestMediaData();
+    if (media && media.title && media.title.trim()) {
+      const artist = media.artist ? ` của ${media.artist}` : '';
+      return `Bạn đang nghe bài: "${media.title}"${artist}.`;
+    }
+    return "Hiện chưa có bài hát nào đang phát trên Spotify, YouTube hoặc Chrome.";
+  }
+
   return null;
 }
 
 async function generateGeminiContent(apiKey, prompt) {
   const genAI = new GoogleGenerativeAI(apiKey);
-  
-  // Tự động phân loại danh sách model phù hợp nhất với loại API Key
-  let modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-3.6-flash'];
-  if (apiKey.startsWith('AQ.')) {
-    modelsToTry = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-  }
+  const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
 
   let lastError = null;
   for (const modelName of modelsToTry) {
@@ -271,7 +308,6 @@ async function generateGeminiContent(apiKey, prompt) {
       return response.text();
     } catch (err) {
       lastError = err;
-      // Nếu là lỗi 404 (Model không tồn tại đối với tài khoản/key này), tự động chuyển sang model tiếp theo
       if (err.message && (err.message.includes('404') || err.message.includes('not found'))) {
         continue;
       }
@@ -283,8 +319,9 @@ async function generateGeminiContent(apiKey, prompt) {
 
 ipcMain.handle('ask-gemini', async (event, query) => {
   const trimmed = (query || '').trim();
+  if (!trimmed) return "Vui lòng nhập câu hỏi.";
 
-  // Hỗ trợ lệnh đổi/lưu API Key trực tiếp trong khung chat: /key <your_api_key>
+  // 1. Hỗ trợ lệnh đổi/lưu API Key trực tiếp trong khung chat: /key <your_api_key>
   if (trimmed.startsWith('/key ') || trimmed.startsWith('/setkey ')) {
     const newKey = trimmed.replace(/^\/(key|setkey)\s+/, '').trim();
     if (newKey) {
@@ -295,14 +332,25 @@ ipcMain.handle('ask-gemini', async (event, query) => {
     }
   }
 
+  // 2. Thử phản hồi câu hỏi hệ thống / offline trước
+  const localReply = await handleLocalSmartQuery(trimmed);
+  if (localReply) {
+    return localReply;
+  }
+
+  // 3. Kiểm tra API Key cho các câu hỏi AI tổng quát
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
-    return "Tôi chưa có Gemini API Key trên máy này. Bạn hãy nhập: `/key <API_KEY>` ngay tại đây để lưu khóa (Lấy key miễn phí tại https://aistudio.google.com).";
+    return "Tôi cần Google Gemini API Key để trả lời câu hỏi này. Bạn hãy lấy key miễn phí tại https://aistudio.google.com rồi gõ: `/key <API_KEY>` ngay tại đây nhé!";
+  }
+
+  if (!apiKey.startsWith('AIzaSy')) {
+    return `Khóa hiện tại (${apiKey.substring(0, 6)}...) không phải là Gemini API Key chuẩn của Google (Key chuẩn luôn bắt đầu bằng "AIzaSy" gồm 39 ký tự). Bạn hãy lấy key miễn phí tại https://aistudio.google.com rồi gõ: /key <AIzaSy_CỦA_BẠN> nhé!`;
   }
 
   try {
     const prompt = `Bạn là một trợ lý ảo siêu thông minh tên là "Dynamic Island Bot", hoạt động trên màn hình desktop của Windows.
-Hãy trả lời ngắn gọn, thân thiện và súc tích, tối đa 2-3 câu, vì bạn đang hiển thị trên một thanh thông báo nhỏ (như Siri).
+Hãy trả lời ngắn gọn, thân thiện và súc tích bằng tiếng Việt, tối đa 2-3 câu, vì bạn đang hiển thị trên một thanh thông báo nhỏ (như Siri).
 Câu hỏi của người dùng: ${trimmed}`;
 
     return await generateGeminiContent(apiKey, prompt);
