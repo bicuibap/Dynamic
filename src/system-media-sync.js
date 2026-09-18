@@ -515,12 +515,9 @@ class SystemMediaSync {
     this.alertTimer = setTimeout(() => {
       if (this.isExpanded && this.islandPill.classList.contains('mode-alert')) {
         this.toggleExpand(false);
-        // Nếu trước đó đang ẩn và có bật tự ẩn, thì ẩn luôn ngay lập tức thay vì đợi 8s
-        if (wasHidden && this.autoHide) {
-          this.islandPill.classList.add('island-hidden');
-          if (this.islandWrapper) this.islandWrapper.classList.add('island-hidden');
-          this.setMouseIgnored(true);
-          if (this.hideTimeout) clearTimeout(this.hideTimeout);
+        // Sau khi alert đóng lại, cho phép đảo hiển thị ở dạng Compact Notch 8 giây rồi mới trượt ẩn
+        if (this.autoHide) {
+          this.showIslandTemporarily(8000);
         }
       }
     }, 3000);
@@ -612,19 +609,13 @@ class SystemMediaSync {
           const oldTitle = this.lastTitle;
           this.hasActiveMedia = true;
           
-          const titleChanged = (oldTitle && oldTitle !== media.title);
+          const titleChanged = (!oldTitle || oldTitle !== media.title);
 
-          const isCurrentlyHidden = !this.islandPill ||
-              this.islandPill.classList.contains('island-hidden') ||
-              (this.islandWrapper && this.islandWrapper.classList.contains('island-hidden'));
-
-          // Khi đang ở chế độ tự ẩn (autoHide) và đảo đang ẩn:
-          // TUYỆT ĐỐI không tự ý hiện Alert hay bung đảo ra khi người dùng ấn qua tab khác
-          const shouldShowAlert = titleChanged && !this.isExpanded && (!this.autoHide || !isCurrentlyHidden);
+          // Cập nhật giao diện nhạc và tự động trượt đảo xuống khi mở bài hoặc đổi bài
+          this.updateMediaUI(media, false);
           
-          this.updateMediaUI(media, isCurrentlyHidden || !shouldShowAlert);
-          
-          if (shouldShowAlert) {
+          // Khi mở bài mới hoặc chuyển bài -> Hiển thị Alert tên bài hát
+          if (titleChanged && !this.isExpanded) {
             this.showAlert(media.title, '🎵');
           }
         } else {
@@ -691,11 +682,7 @@ class SystemMediaSync {
   }
 
   updateMediaUI(media, skipAutoShow = false) {
-    const isCurrentlyHidden = !this.islandPill ||
-        this.islandPill.classList.contains('island-hidden') ||
-        (this.islandWrapper && this.islandWrapper.classList.contains('island-hidden'));
-
-    if (this.lastTitle !== media.title && !skipAutoShow && (!this.autoHide || !isCurrentlyHidden)) {
+    if (this.lastTitle !== media.title && !skipAutoShow) {
       this.showIslandTemporarily(this.autoHide ? 8000 : 0);
     }
     this.lastTitle = media.title;
