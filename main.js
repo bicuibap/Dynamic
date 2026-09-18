@@ -296,26 +296,26 @@ async function handleLocalSmartQuery(query) {
 }
 
 async function generateGeminiContent(apiKey, prompt) {
+  const ai = new GoogleGenAI({ apiKey: apiKey });
   const modelsToTry = [
-    'gemini-3.8-flash',
+    'gemini-3.6-flash',
     'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    'gemini-3.8-flash'
   ];
 
   let lastError = null;
   for (const modelName of modelsToTry) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
+      const res = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt
+      });
+      if (res && res.text) {
+        return res.text;
+      }
     } catch (err) {
       lastError = err;
-      if (err.message && (err.message.includes('404') || err.message.includes('not found'))) {
-        continue;
-      }
-      throw err;
+      continue;
     }
   }
   throw lastError;
